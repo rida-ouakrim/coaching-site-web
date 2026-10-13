@@ -1,0 +1,18 @@
+{
+  "name": "Dr. Jamal Bouassiria Coaching",
+  "short_name": "JB Coaching",
+  "description": "1:1 Business Coaching & Personal Branding für Migranten in Deutschland",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07090e",
+  "theme_color": "#07090e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/images/dr_jamal_bouassiria.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

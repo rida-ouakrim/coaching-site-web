@@ -1,0 +1,74 @@
+# ==============================================================================
+# Apache Configuration: Security Hardening & Performance
+# Dr. Jamal Bouassiria Coaching - https://coaching.jamalbouassiria.de/
+# ==============================================================================
+
+# 1. PREVENT DIRECTORY BROWSING
+Options -Indexes
+
+# 2. DEFAULT CHARSET
+AddDefaultCharset UTF-8
+
+# 3. HTTP SECURITY HEADERS
+<IfModule mod_headers.c>
+    # Prevent clickjacking
+    Header set X-Frame-Options "SAMEORIGIN"
+
+    # Prevent MIME-type sniffing
+    Header set X-Content-Type-Options "nosniff"
+
+    # Enable XSS filtering
+    Header set X-XSS-Protection "1; mode=block"
+
+    # Referrer policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Restrict device features / sensors
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+
+    # Content Security Policy (allows self, Google Fonts, and inline data/styles safely)
+    Header set Content-Security-Policy "default-src 'self' https: data:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https:;"
+</IfModule>
+
+# 4. GZIP COMPRESSION (mod_deflate)
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript
+    AddOutputFilterByType DEFLATE application/javascript application/json application/xml application/xhtml+xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# 5. BROWSER CACHING (mod_expires)
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 month"
+
+    # HTML: No-cache or short revalidation for instant deployment freshness
+    ExpiresByType text/html "access plus 0 seconds"
+
+    # CSS & JavaScript: 1 month (cache-busting query strings used)
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+
+    # Images & Media: 6 months
+    ExpiresByType image/jpeg "access plus 6 months"
+    ExpiresByType image/png "access plus 6 months"
+    ExpiresByType image/webp "access plus 6 months"
+    ExpiresByType image/svg+xml "access plus 6 months"
+    ExpiresByType image/x-icon "access plus 1 year"
+
+    # Webfonts: 1 year
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/ttf "access plus 1 year"
+</IfModule>
+
+# 6. BLOCK SENSITIVE & HIDDEN FILES
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "(package\.json|server\.js|\.git|\.env|\.md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

@@ -1,0 +1,14 @@
+# Robots.txt for Dr. Jamal Bouassiria Coaching
+# https://coaching.grafikausdenker.com/
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /private/
+Disallow: /api/internal/
+
+# Crawl-delay for polite crawlers
+Crawl-delay: 1
+
+# XML Sitemap reference
+Sitemap: https://coaching.grafikausdenker.com/sitemap.xml
