@@ -417,9 +417,9 @@ function initBookingFunnel() {
           summaryBox.innerHTML = `
             <div style="font-size:0.92rem; color:#A1A1AA; line-height:1.75; text-align:start;">
               <p><strong>${escapeHtml(lblName)}:</strong> <span style="color:#FFFFFF;">${escapeHtml(bookingData.name)}</span></p>
-              <p><strong>${escapeHtml(lblPhone)}:</strong> <span style="color:#e6be8a;">${escapeHtml(bookingData.phone)}</span></p>
+              <p><strong>${escapeHtml(lblPhone)}:</strong> <span style="color:#60a5fa;">${escapeHtml(bookingData.phone)}</span></p>
               <p><strong>${escapeHtml(lblEmail)}:</strong> <span style="color:#FFFFFF;">${escapeHtml(bookingData.email)}</span></p>
-              <p><strong>${escapeHtml(lblSlot)}:</strong> <span style="color:#FFFFFF;">${escapeHtml(bookingData.slot)}</span> (${escapeHtml(lblLang)}: <span style="color:#e6be8a;">${escapeHtml(bookingData.language)}</span>)</p>
+              <p><strong>${escapeHtml(lblSlot)}:</strong> <span style="color:#FFFFFF;">${escapeHtml(bookingData.slot)}</span> (${escapeHtml(lblLang)}: <span style="color:#60a5fa;">${escapeHtml(bookingData.language)}</span>)</p>
               <p><strong>${escapeHtml(lblStatus)}:</strong> <span style="color:#D1D5DB;">${escapeHtml(bookingData.status)}</span></p>
             </div>
           `;
@@ -622,8 +622,8 @@ function showToast(message, type = 'info') {
   toast.className = 'toast';
   
   const icon = type === 'success' 
-    ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e6be8a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
-    : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f6dfc4" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
+    : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
 
   toast.innerHTML = `${icon} <span>${message}</span>`;
   container.appendChild(toast);
