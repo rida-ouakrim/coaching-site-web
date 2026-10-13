@@ -584,10 +584,10 @@ img {
 }
 
 .lang-opt.active {
-  background: #e2bc8a !important;
-  color: #000000 !important;
+  background: #3b82f6 !important;
+  color: #ffffff !important;
   font-weight: 800 !important;
-  box-shadow: 0 2px 10px rgba(226, 188, 138, 0.35) !important;
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.45) !important;
 }
 
 .mobile-drawer-header {
@@ -3591,29 +3591,46 @@ html[dir="rtl"] .expertise-card-footer {
 .modal-close-btn {
   position: absolute;
   top: 1.15rem;
-  right: 1.15rem;
-  width: 36px;
-  height: 36px;
+  right: 1.25rem;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
+  background: rgba(14, 20, 32, 0.95);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--transition-fast);
-  z-index: 10;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 20;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+}
+
+.modal-close-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: #FFFFFF;
+  stroke-width: 2.2;
+  transition: transform 0.25s ease, stroke 0.2s ease;
 }
 
 .modal-close-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: #3b82f6;
+  border-color: #60a5fa;
   color: #FFFFFF;
+  transform: scale(1.08) rotate(90deg);
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.65), 0 4px 14px rgba(0, 0, 0, 0.6);
+}
+
+.modal-close-btn:hover svg {
+  stroke: #FFFFFF;
 }
 
 .modal-header {
-  padding: 1.65rem 2rem 1.15rem;
+  padding: 1.5rem 4.5rem 1.15rem 1.85rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  position: relative;
 }
 
 .modal-step-indicator {
@@ -4764,7 +4781,11 @@ html[dir="rtl"] .back-to-top-btn {
 /* RTL & MULTILINGUAL MODAL REFINEMENTS */
 html[dir="rtl"] .modal-close-btn {
   right: auto;
-  left: 1.15rem;
+  left: 1.25rem;
+}
+
+html[dir="rtl"] .modal-header {
+  padding: 1.5rem 1.85rem 1.15rem 4.5rem;
 }
 
 html[dir="rtl"] .modal-step-indicator {
