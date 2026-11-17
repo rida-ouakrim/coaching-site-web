@@ -3,11 +3,43 @@
  * Interactive UI/UX Scripts & Funnel Management
  */
 
+let lenisInstance = null;
+
+function initLenisSmoothScroll() {
+  if (typeof Lenis === 'undefined') return;
+
+  try {
+    lenisInstance = new Lenis({
+      duration: 1.15,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 0.95,
+      smoothTouch: false,
+      touchMultiplier: 1.5,
+      infinite: false,
+    });
+
+    window.lenis = lenisInstance;
+
+    function raf(time) {
+      if (lenisInstance) {
+        lenisInstance.raf(time);
+      }
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+  } catch (err) {
+    console.warn('Lenis smooth scroll fallback to native:', err);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  initLenisSmoothScroll();
   initSiteOpening();
-  initScrollProgressBar();
+  initScrollPerformanceManager();
   initScrollReveal();
-  initBackToTop();
   initNavbar();
   initLanguageSwitcher();
   initHeroBackgroundSlider();
@@ -53,21 +85,9 @@ function initHeroBackgroundSlider() {
    1. NAVBAR & MOBILE DRAWER
    ========================================================================== */
 function initNavbar() {
-  const header = document.querySelector('.header-nav');
   const mobileToggle = document.querySelector('.mobile-menu-btn');
   const mobileDrawer = document.querySelector('.mobile-nav-drawer');
   const mobileLinks = document.querySelectorAll('.mobile-links a');
-
-  // Sticky header visibility transition
-  const handleScroll = () => {
-    if (window.scrollY > 40) {
-      header.classList.add('scrolled');
-    } else {
-      header.classList.remove('scrolled');
-    }
-  };
-  window.addEventListener('scroll', handleScroll, { passive: true });
-  handleScroll();
 
   // Mobile menu toggle
   if (mobileToggle && mobileDrawer) {
@@ -210,7 +230,7 @@ function initBookingFunnel() {
       const modalFooter = modal.querySelector('.modal-footer');
       if (modalHeader) modalHeader.style.display = '';
       if (modalFooter) modalFooter.style.display = '';
-      
+
       openModal(modal);
       goToStep(1);
     });
@@ -477,7 +497,7 @@ function initLeadModal() {
 
       const nameInput = form.querySelector('input[type="text"]#leadName') || form.querySelector('input[type="text"]');
       const emailInput = form.querySelector('input[type="email"]#leadEmail') || form.querySelector('input[type="email"]');
-      
+
       const name = nameInput ? nameInput.value.trim().slice(0, 80) : '';
       const email = emailInput ? emailInput.value.trim().slice(0, 100) : '';
 
@@ -489,7 +509,7 @@ function initLeadModal() {
       isLeadSubmitting = true;
       const submitBtn = form.querySelector('button[type="submit"]');
       const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
-      
+
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = `<span>${getTranslation('lead_submitting') || 'Wird gesendet...'}</span>`;
@@ -558,10 +578,10 @@ function initVideoModals() {
       e.preventDefault();
       const clientName = btn.getAttribute('data-client-name') || 'Erfolgsgeschichte';
       const quote = btn.getAttribute('data-quote') || '';
-      
+
       const modalTitle = videoModal.querySelector('.video-modal-client-name');
       const modalQuote = videoModal.querySelector('.video-modal-quote');
-      
+
       if (modalTitle) modalTitle.textContent = clientName;
       if (modalQuote) modalQuote.textContent = quote;
 
@@ -585,12 +605,18 @@ function openModal(modal) {
   if (!modal) return;
   modal.classList.add('active');
   document.body.style.overflow = 'hidden';
+  if (window.lenis) {
+    window.lenis.stop();
+  }
 }
 
 function closeModal(modal) {
   if (!modal) return;
   modal.classList.remove('active');
   document.body.style.overflow = '';
+  if (window.lenis) {
+    window.lenis.start();
+  }
 }
 
 function validateEmail(email) {
@@ -599,7 +625,7 @@ function validateEmail(email) {
 
 function escapeHtml(str) {
   if (!str) return '';
-  return str.replace(/[&<>"']/g, function(m) {
+  return str.replace(/[&<>"']/g, function (m) {
     return {
       '&': '&amp;',
       '<': '&lt;',
@@ -620,8 +646,8 @@ function showToast(message, type = 'info') {
 
   const toast = document.createElement('div');
   toast.className = 'toast';
-  
-  const icon = type === 'success' 
+
+  const icon = type === 'success'
     ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
     : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
 
@@ -638,21 +664,29 @@ function showToast(message, type = 'info') {
 
 function initSmoothScroll() {
   document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
+    anchor.addEventListener('click', function (e) {
       const targetId = this.getAttribute('href');
       if (targetId === '#' || targetId === '') return;
-      
+
       const targetElement = document.querySelector(targetId);
       if (targetElement) {
         e.preventDefault();
         const headerOffset = 80;
-        const elementPosition = targetElement.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
 
-        window.scrollTo({
-          top: offsetPosition,
-          behavior: 'smooth'
-        });
+        if (window.lenis) {
+          window.lenis.scrollTo(targetElement, {
+            offset: -headerOffset,
+            duration: 1.2
+          });
+        } else {
+          const elementPosition = targetElement.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+        }
       }
     });
   });
@@ -663,7 +697,7 @@ function initSmoothScroll() {
    ========================================================================== */
 function initSiteOpening() {
   const preloader = document.getElementById('site-preloader');
-  
+
   const dismissPreloader = () => {
     document.body.classList.add('page-loaded');
     if (preloader) {
@@ -686,19 +720,78 @@ function initSiteOpening() {
   }
 }
 
-function initScrollProgressBar() {
+function initScrollPerformanceManager() {
+  const header = document.querySelector('.header-nav');
   const bar = document.getElementById('scrollProgressBar');
-  if (!bar) return;
+  const backToTopBtn = document.getElementById('backToTopBtn');
 
-  const updateBar = () => {
-    const scrollTop = window.scrollY || document.documentElement.scrollTop;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) : 0;
-    bar.style.transform = `scaleX(${Math.min(Math.max(scrollPercent, 0), 1)})`;
+  let ticking = false;
+  let cachedDocHeight = 0;
+
+  const updateCachedHeight = () => {
+    cachedDocHeight = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  };
+  updateCachedHeight();
+  window.addEventListener('resize', updateCachedHeight, { passive: true });
+  window.addEventListener('load', updateCachedHeight, { passive: true });
+
+  const onScrollTick = () => {
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+
+    // 1. Sticky header visibility transition
+    if (header) {
+      if (scrollY > 40) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    }
+
+    // 2. Scroll progress bar update (GPU-accelerated scaleX)
+    if (bar) {
+      const scrollPercent = cachedDocHeight > 0 ? (scrollY / cachedDocHeight) : 0;
+      bar.style.transform = `scaleX(${Math.min(Math.max(scrollPercent, 0), 1)})`;
+    }
+
+    // 3. Floating back-to-top button
+    if (backToTopBtn) {
+      if (scrollY > 400) {
+        backToTopBtn.classList.add('visible');
+      } else {
+        backToTopBtn.classList.remove('visible');
+      }
+    }
+
+    ticking = false;
   };
 
-  window.addEventListener('scroll', updateBar, { passive: true });
-  updateBar();
+  const requestTick = () => {
+    if (!ticking) {
+      requestAnimationFrame(onScrollTick);
+      ticking = true;
+    }
+  };
+
+  if (window.lenis) {
+    window.lenis.on('scroll', requestTick);
+  }
+  window.addEventListener('scroll', requestTick, { passive: true });
+  onScrollTick();
+
+  // Back to top click handler with Lenis support
+  if (backToTopBtn) {
+    backToTopBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (window.lenis) {
+        window.lenis.scrollTo(0, { duration: 1.2 });
+      } else {
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+      }
+    });
+  }
 }
 
 function initScrollReveal() {
@@ -718,35 +811,11 @@ function initScrollReveal() {
       }
     });
   }, {
-    threshold: 0.12,
-    rootMargin: '0px 0px -40px 0px'
+    threshold: 0.02,
+    rootMargin: '0px 0px 80px 0px'
   });
 
   revealElements.forEach(el => observer.observe(el));
-}
-
-function initBackToTop() {
-  const btn = document.getElementById('backToTopBtn');
-  if (!btn) return;
-
-  const toggleBtn = () => {
-    if (window.scrollY > 400) {
-      btn.classList.add('visible');
-    } else {
-      btn.classList.remove('visible');
-    }
-  };
-
-  window.addEventListener('scroll', toggleBtn, { passive: true });
-  toggleBtn();
-
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  });
 }
 
 /* ==========================================================================
@@ -754,6 +823,7 @@ function initBackToTop() {
    ========================================================================== */
 const I18N = {
   de: {
+    // 1. Navigation
     nav_about: "Über Dr. Jamal",
     nav_method: "Die Methode",
     nav_content: "Coaching-Inhalte",
@@ -766,221 +836,290 @@ const I18N = {
     mob_expertise: "Fachgebiete",
     mob_steps: "In 3 Schritten",
     mob_drawer_cta: "Jetzt kostenloses Erstgespräch",
-    hero_title: 'Du bist hier, um etwas aufzubauen. <span class="gold-gradient-text">Nicht, um klein zu bleiben.</span>',
-    hero_sub: 'Begleitung durch Dr. Jamal Bouassiria – praxiserprobt, ohne Sprachbarriere und ohne Umwege zum erfolgreichen Unternehmen in Deutschland.',
-    hero_cta: 'Kostenloses Erstgespräch sichern',
-    hero_about: 'Über Dr. Jamal ↓',
-    hero_guarantee: '100% vertraulich · Erstberatung auf Deutsch oder Arabisch',
-    trust_1: 'Über 7.000 Menschen beraten',
-    trust_2: '20+ Jahre Erfahrung in DE',
-    trust_3: 'Ausgezeichnete Methodik',
-    pillar_kicker: 'DAS JB-ERFOLGSPRINZIP',
-    pillar_tag: 'Was bedeutet das?',
-    pillar_subtitle: 'Drei fundamentale Hebel, mit denen wir deine Ausgangslage in ein florierendes Business in Deutschland verwandeln.',
-    pillar_word_1: 'sprache',
-    pillar_title_1: 'Keine Barriere, sondern dein Vorteil',
-    pillar_desc_1: 'Viele glauben, man brauche akzentfreies Deutsch, um in Deutschland erfolgreich zu gründen. Die Realität: Kunden kaufen Souveränität, Vertrauen und greifbare Resultate – keine Grammatik. Wir machen deine Mehrsprachigkeit zu deiner stärksten Marke.',
-    pillar_word_2: 'netzwerk',
-    pillar_title_2: 'Türen öffnen, die sonst verschlossen bleiben',
-    pillar_desc_2: 'Ohne Vorbilder und lokale Kontakte wirkt der Markt oft verschlossen. Mit Dr. Jamal startest du nicht bei null, sondern nutzt über 20 Jahre gewachsenes B2B-Netzwerk, Medienkontakte und Branchenverbindungen ab Tag 1.',
-    pillar_word_3: 'strategie',
-    pillar_title_3: 'Aus Fleiß ein profitables Business bauen',
-    pillar_desc_3: 'Eine Idee allein reicht im deutschen System nicht. Was zählt, ist die exakte Ausführung: rechtssichere Gründung, glasklare Positionierung und planbare Neukundengewinnung – ohne Umwege, Bürokratiefrust und teure Anfängerfehler.',
-    banner_brand_pre: 'werde',
-    banner_brand_post: 'Mentee',
-    banner_text: 'Dr. Jamal gibt dir den direkten Zugang zum Praxis-Wissen, das vor dir über 7.000 Menschen genutzt haben, um aus eigener Kraft ein florierendes Unternehmen in Deutschland aufzubauen. 100% praxisnah, ohne Sprachbarriere und auf Augenhöhe.',
-    banner_cta: 'Jetzt kostenloses Erstgespräch sichern',
-    stat_prefix_1: 'Über',
-    stat_label_1: 'Menschen beraten',
-    stat_prefix_2: 'Über',
-    stat_label_2: 'Erfahrung in DE',
-    stat_prefix_3: 'Bis zu',
-    stat_label_3: 'Praxisnah & Diskret',
-    methode_tag: 'Fokus statt Überforderung',
-    methode_title: 'Zwei einfache Prinzipien,',
-    methode_title_gold: 'die alles verändern',
-    methode_desc: 'Erfolg in der Selbstständigkeit ist keine Frage von endlosem Grübeln. Er basiert auf klaren, funktionierenden Grundsätzen:',
-    methode_card1_title: '1. Das Pareto-Prinzip',
-    methode_card1_desc: 'Konzentriere dich auf die 20 % deiner Handlungen, die 80 % deines Ergebnisses bringen – statt dich in Nebensächlichkeiten zu verlieren.',
-    methode_card1_pill: '80% Resultate durch 20% Hebel',
-    methode_card2_title: '2. Machen statt warten',
-    methode_card2_desc: 'Perfektionismus ist der größte Bremser für Migrant:innen, die neu durchstarten wollen. Wer wartet, bis alles perfekt ist, fängt nie an. Wer anfängt und unterwegs verbessert, kommt an.',
-    methode_card2_pill: 'Geschwindigkeit schlägt Perfektion',
-    benefits_tag: 'DEINE TRANSFORMATION',
-    benefits_title: 'Gemeinsam lernen',
-    benefits_title_gold: 'und wachsen',
-    benefits_desc: 'Gemeinsam bringen wir deine Vision aus dem Kopf in ein handfestes, profitables und rechtssicheres Business in Deutschland:',
-    benefit_pillar_1: 'Säule 01 · Präsenz',
-    benefit_title_1: 'Deine Online-Präsenz aufbauen',
-    benefit_desc_1: 'Webseite, Shop, Logo und Corporate Design, damit du vom ersten Tag an maximal professionell auftrittst.',
-    benefit_item_1_1: 'High-Converting Website & Design',
-    benefit_item_1_2: 'E-Commerce & Online-Shop Setup',
-    benefit_item_1_3: 'Rechtssicher nach deutschen DSGVO-Standards',
-    benefit_tag_1: 'Digitale Souveränität',
-    benefit_pillar_2: 'Säule 02 · Reichweite',
-    benefit_title_2: 'Sichtbar werden mit der richtigen Werbung',
-    benefit_desc_2: 'In neuen und klassischen Medien, um planbar mehr Umsatz, profitable Kunden und nachhaltigen Gewinn zu erzielen.',
-    benefit_item_2_1: 'Performance-Marketing (Meta & Google)',
-    benefit_item_2_2: 'Gezielte Medien- & PR-Platzierungen',
-    benefit_item_2_3: 'Planbarer Neukundenstrom ohne Streuverlust',
-    benefit_tag_2: 'Messbares Wachstum',
-    benefit_pillar_3: 'Säule 03 · Autorität',
-    benefit_title_3: 'Dein Personal Branding aufbauen',
-    benefit_desc_3: 'Mit Dr. Jamals jahrelanger Erfahrung im Umgang mit führenden Medien und prominenten Entscheidern.',
-    benefit_item_3_1: 'Souveräne Experten-Positionierung',
-    benefit_item_3_2: 'Medienauftritte, Interviews & Bühnen',
-    benefit_item_3_3: 'Zugang zu 20+ Jahren gewachsenem B2B-Netzwerk',
-    benefit_tag_3: 'Unverwechselbare Marke',
-    inhalte_tag: 'PRAXISNAHER LEHRPLAN',
-    inhalte_title: 'Schritt für Schritt',
-    inhalte_title_gold: 'zum eigenen Business',
-    inhalte_desc: 'Workshops, Seminare und 1:1-Beratung in deutscher und arabischer Sprache:',
-    mod_tag_1: 'MODUL 01',
-    mod_1: 'Projektmanagement',
-    mod_tag_2: 'MODUL 02',
-    mod_2: 'Persönlichkeitsentwicklung',
-    mod_tag_3: 'MODUL 03',
-    mod_3: 'Erfolgreicher Markenaufbau (Branding)',
-    mod_tag_4: 'MODUL 04',
-    mod_4: 'Dein Unternehmen gründen',
-    mod_tag_5: 'MODUL 05',
-    mod_5: 'Journalistische Weiterbildung & Online-PR',
-    mod_tag_6: 'MODUL 06',
-    mod_6: 'Webseiten-Entwicklung, Werbetexte & Verkauf',
-    takeaway_badge: 'FÜR DEINE PRAXIS',
-    takeaway_title: 'Was du konkret mitnimmst:',
-    takeaway_1: 'Ein erprobtes Online-System für finanzielle Unabhängigkeit.',
-    takeaway_2: 'Strategien für wirksame Presse- und Öffentlichkeitsarbeit.',
-    takeaway_3: 'Regelmäßige praxisnahe Tipps direkt per E-Mail.',
-    takeaway_4: 'Fokus auf die Hebel, die wirklich zählen.',
-    transparency_label: 'Transparenz & Ehrlichkeit:',
-    transparency_quote: '"Mein Coaching ist nicht fürs schnelle Reichwerden gedacht. Aber die finanzielle Freiheit, nicht mehr für einen Chef acht Stunden am Tag arbeiten zu müssen, ist das Ziel, auf das wir gemeinsam hinarbeiten."',
-    transparency_cta: 'Jetzt kostenlos zum Newsletter anmelden',
-    reasons_tag: 'DEINE MOTIVATION',
-    reasons_title: 'Diese 7 Vorteile',
-    reasons_title_gold: 'bringt dir dein eigenes Business',
-    reasons_desc: 'Warum es sich lohnt, jetzt den ersten Schritt zu machen und dein eigenes Fundament aufzubauen:',
-    reason_tag_1: 'Monetarisierung',
-    reason_title_1: 'Mache dein Wissen und deine Fähigkeiten zu Geld',
-    reason_desc_1: 'Verwandle deine Lebens- und Berufserfahrung in ein gefragtes, hochprofitables Angebot auf dem deutschen Markt.',
-    reason_tag_2: 'Sinn & Wirkung',
-    reason_title_2: 'Hilf mit deinem Business anderen Menschen',
-    reason_desc_2: 'Löse echte Probleme für deine Kunden und hinterlasse einen bleibenden, messbaren Mehrwert in deiner Community.',
-    reason_tag_3: 'Planbarkeit',
-    reason_title_3: 'Gewinne automatisch & planbar neue Kunden',
-    reason_desc_3: 'Durch strukturierte Online-Funnel und erprobte Vertriebswege ohne unangenehme Kaltakquise.',
-    reason_tag_4: 'Einkommen',
-    reason_title_4: 'Steigere deine Einnahmen spürbar',
-    reason_desc_4: 'Kein Chef, der dein Gehalt deckelt. Dein Einkommen wächst direkt proportional zu deinem Einsatz und Erfolg.',
-    reason_tag_5: 'Autonomie',
-    reason_title_5: 'Echte Freiheit – zeitlich und finanziell',
-    reason_desc_5: 'Bestimme selbst über deinen Kalender, deine Arbeitsorte und die langfristige Ausrichtung deines Lebens.',
-    reason_tag_6: 'Potenzial',
-    reason_title_6: 'Entdecke und nutze dein volles Potenzial',
-    reason_desc_6: 'Wachse über alte Begrenzungen hinaus und baue ein Unternehmen auf, auf das du und deine Kinder stolz sein können.',
-    reason_tag_7: 'HERZSTÜCK & HÖCHSTER WERT',
-    reason_title_7: 'Mehr Zeit für das, was wirklich zählt:',
-    reason_title_7_gold: 'deine Familie',
-    reason_desc_7: 'Finanzielle Sicherheit und zeitliche Souveränität bedeuten am Ende vor allem eines: Echte Lebensqualität, persönliche Präsenz und unbezahlbare Momente mit den Menschen, die dir am wichtigsten sind.',
+
+    // 1. Hero-Bereich (PDF Abschnitt 1)
+    hero_kicker: "Seit 2008 an der Seite von Menschen mit Migrationsgeschichte in Deutschland",
+    hero_title: 'Du bist nach Deutschland gekommen, um etwas aufzubauen. <span class="gold-gradient-text">Nicht, um klein zu bleiben.</span>',
+    hero_sub: 'Ich bin Dr. Jamal Bouassiria – aufgewachsen in Marokko, ohne perfektes Deutsch und ohne Netzwerk nach Deutschland gekommen. Heute helfe ich Migrantinnen und Migranten, aus eigener Kraft ein erfolgreiches Unternehmen aufzubauen. 1:1, ehrlich, und ohne leere Versprechen.',
+    hero_cta: "Jetzt kostenloses Erstgespräch sichern",
+    hero_about: "Meine Geschichte ansehen ↓",
+    hero_guarantee: "100% vertraulich · Erstberatung auf Deutsch oder Arabisch",
+    trust_1: "Über 7.000 Menschen beraten",
+    trust_2: "20+ Jahre Erfahrung",
+    trust_3: "Ausgezeichnet mit 4+ internationalen Auszeichnungen",
+    hero_portals_title: "Unsere Webseiten & Projekte:",
+    hero_portal_books: "Meine Bücher",
+    hero_portal_choose: "Portal auswählen...",
+    hero_portal_visit: "Besuchen ↗",
+
+    // 2. Das Problem (PDF Abschnitt 2)
+    problem_tag: "Das Problem (Identifikation schaffen)",
+    problem_title: "Du kennst das vielleicht selbst",
+    problem_cat_1: "SPRACHE & SICHTBARKEIT",
+    problem_cat_2: "FAMILIE & VORBILDER",
+    problem_cat_3: "NETZWERK & TÜREN",
+    problem_cat_4: "STRUKTUR & BUSINESS",
+    problem_cat_5: "CHANCEN & MINDSET",
+    problem_1: "Du sprichst nicht perfekt Deutsch – und traust dich deshalb nicht, sichtbar zu werden.",
+    problem_2: "Deine Familie kann dir bei geschäftlichen Fragen nicht weiterhelfen, weil sie selbst nie ein Unternehmen aufgebaut hat.",
+    problem_3: "Du hast kein Netzwerk in Deutschland, das dir Türen öffnet.",
+    problem_4: "Du hast eine Idee oder ein Talent – aber niemand hat dir gezeigt, wie man daraus wirklich ein Business macht.",
+    problem_5: "Du hast schon einmal gedacht: „Für Leute wie mich ist das hier einfach schwerer.“",
+    problem_res_title: "Das stimmt. Und trotzdem ist es möglich.",
+    problem_res_text: "Ich bin der Beweis dafür – und in den letzten 20+ Jahren habe ich Tausenden Menschen mit genau diesem Startpunkt geholfen, den Weg zu gehen.",
+    problem_res_cta: "Unverbindliches Erstgespräch buchen",
+    problem_perspective: "DIE PERSPEKTIVE",
+
+    // 3. Vorstellung: Wer ist Jamal Bouassiria (PDF Abschnitt 3)
     about_portrait_role: "Gründer, Publizist & Mentor",
     about_badge_exp: "Promotion Universität Bremen",
-    about_tag: "Authentische Erfolgsgeschichte",
+    about_tag: "Vorstellung",
     about_title: "Mein Name ist Dr. Jamal Bouassiria",
     about_roles: "Politikwissenschaftler · Journalist · Online- & PR-Unternehmer",
     about_bio_1: "Ich bin in Marokko aufgewachsen und kam nach dem Abitur nach Deutschland, um Politikwissenschaft zu studieren – ohne familiäres Sicherheitsnetz, ohne Kontakte, mit einer Sprache, die ich mir erst erarbeiten musste.",
     about_bio_2: "Während meiner Promotion an der Universität Bremen zum Thema Migration entdeckte ich meine Leidenschaft für den Online-Journalismus. Daraus entstand mein eigenes deutsch-arabisches Nachrichtenportal, das bis heute eine Brücke zwischen Deutschland und Afrika schlägt.",
     about_bio_3: "2016 gründete ich meine Agentur <strong>Afripa Media Service</strong>. Seitdem berate ich Privatpersonen, Unternehmer:innen, aber auch Politiker und Verwaltungen in Deutschland und Marokko in den Bereichen Online-Marketing, Öffentlichkeitsarbeit und digitale Sichtbarkeit.",
+    about_bio_4: "Was mich antreibt: Ich habe selbst erlebt, wie es ist, in diesem Land bei null anzufangen. Deshalb ist mein Coaching kein theoretisches Konzept aus dem Lehrbuch – es basiert auf dem, was bei mir und bei hunderten meiner Klient:innen tatsächlich funktioniert hat.",
     about_quote: "Erst machen, dann verbessern. Denn Perfektionismus und das Wort 'irgendwann' lähmen nur.",
     about_btn_talk: "Direkt mit Dr. Jamal sprechen",
     about_btn_more: "Mehr über meinen Werdegang erfahren",
-    fach_tag: "Schwerpunkte & Leistungsbereiche",
+    about_media_badge_books: "Publikationen & Bücher",
+    about_media_title_books: "Autor & Magazin-Herausgeber",
+    about_media_desc_books: "Dr. Jamal Bouassiria ist Herausgeber der renommierten Zeitschrift <em>„مجلة نجاح“</em> und Verfasser praxisnaher Ratgeber für Gründer und Migranten in Deutschland.",
+    about_media_btn_books: "📚 Meine Bücher entdecken ↗",
+    about_media_badge_studio: "Medien & Reichweite",
+    about_media_title_studio: "Eigenes Medienstudio & Video-PR",
+    about_media_desc_studio: "Mit eigener TV- und Medienproduktion (GAI Africa TV, Afripa Media Service) vermittelt Dr. Jamal fundiertes Know-how für digitale Sichtbarkeit und professionelle Positionierung.",
+    about_media_tag_studio: "Professionelle PR- & Studio-Expertise",
+
+    // 4. Die Methode (PDF Abschnitt 4)
+    methode_tag: "Die Methode",
+    methode_title: "Zwei einfache Prinzipien,",
+    methode_title_gold: "die alles verändern",
+    methode_desc: "Erfolg in der Selbstständigkeit ist keine Frage von endlosem Grübeln. Er basiert auf klaren, funktionierenden Grundsätzen:",
+    methode_card1_title: "1. Das Pareto-Prinzip",
+    methode_principle_1: "Prinzip 01 · Fokus",
+    methode_card1_desc: "Konzentriere dich auf die 20 % deiner Handlungen, die 80 % deines Ergebnisses bringen – statt dich in Nebensächlichkeiten zu verlieren.",
+    methode_card1_pill: "80% Resultate durch 20% Hebel",
+    methode_card2_title: "2. Machen statt warten",
+    methode_principle_2: "Prinzip 02 · Umsetzung",
+    methode_card2_desc: "Perfektionismus ist der größte Bremser für Migrant:innen, die neu durchstarten wollen. Wer wartet, bis alles perfekt ist, fängt nie an. Wer anfängt und unterwegs verbessert, kommt an.",
+    methode_card2_pill: "Geschwindigkeit schlägt Perfektion",
+
+    // 5. Was du durch das 1:1-Coaching erreichst (PDF Abschnitt 5)
+    benefits_tag: "Was du durch das 1:1-Coaching erreichst",
+    benefits_title: "Gemeinsam lernen",
+    benefits_title_gold: "und wachsen",
+    benefits_desc: "Gemeinsam bringen wir deine Vision aus dem Kopf in ein handfestes, profitables und rechtssicheres Business in Deutschland:",
+    benefit_pillar_1: "Säule 01 · Online-Präsenz",
+    benefit_title_1: "Deine Online-Präsenz aufbauen",
+    benefit_desc_1: "Webseite, Shop, Logo und Design, damit du von Anfang an professionell auftrittst.",
+    benefit_item_1_1: "Webseite & Shop von Grund auf",
+    benefit_item_1_2: "Logo und Corporate Design",
+    benefit_item_1_3: "Professioneller Auftritt von Anfang an",
+    benefit_tag_1: "Digitale Souveränität",
+    benefit_pillar_2: "Säule 02 · Sichtbarkeit",
+    benefit_title_2: "Sichtbar werden mit der richtigen Werbung",
+    benefit_desc_2: "In neuen und klassischen Medien, um mehr Umsatz und Gewinn zu erzielen.",
+    benefit_item_2_1: "Gezielte Online- & Social-Media-Werbung",
+    benefit_item_2_2: "Platzierungen in klassischen Medien & Presse",
+    benefit_item_2_3: "Planbar mehr Umsatz und Gewinn",
+    benefit_tag_2: "Messbares Wachstum",
+    benefit_pillar_3: "Säule 03 · Personal Branding",
+    benefit_title_3: "Dein Personal Branding aufbauen",
+    benefit_desc_3: "Mit meiner jahrelangen Erfahrung im Umgang mit Medien und Prominenten.",
+    benefit_item_3_1: "Unverwechselbare Experten-Positionierung",
+    benefit_item_3_2: "Umgang mit Medien & Prominenten",
+    benefit_item_3_3: "Glaubwürdigkeit und Autorität im Markt",
+    benefit_tag_3: "Starke Marke",
+
+    // 6. Was dich im Coaching konkret erwartet (PDF Abschnitt 6)
+    inhalte_tag: "Was dich im Coaching konkret erwartet",
+    inhalte_title: "Schritt für Schritt",
+    inhalte_title_gold: "zum eigenen Business",
+    inhalte_desc: "Ich biete Workshops, Seminare und 1:1-Beratung in deutscher und arabischer Sprache an – zu folgenden Themen:",
+    mod_tag_1: "THEMA 01",
+    mod_1: "Projektmanagement",
+    mod_tag_2: "THEMA 02",
+    mod_2: "Persönlichkeitsentwicklung",
+    mod_tag_3: "THEMA 03",
+    mod_3: "Erfolgreiches Markenaufbau (Branding)",
+    mod_tag_4: "THEMA 04",
+    mod_4: "Dein Unternehmen gründen",
+    mod_tag_5: "THEMA 05",
+    mod_5: "Journalistische Weiterbildung & Online-PR<span class=\"module-name-sub\">Medien, Presse & echte Aufmerksamkeit</span>",
+    mod_tag_6: "THEMA 06",
+    mod_6: "Webseiten-Entwicklung, Werbetexte und Online-Verkauf",
+    takeaway_badge: "FÜR DEINE PRAXIS",
+    takeaway_title: "Das nimmst du konkret mit:",
+    takeaway_1: "Du lernst Schritt für Schritt ein Online-System kennen, mit dem du finanziell unabhängiger wirst.",
+    takeaway_2: "Du verstehst, wie erfolgreiche Unternehmen Presse- und Öffentlichkeitsarbeit im Internet nutzen.",
+    takeaway_3: "Du bekommst regelmäßig kostenlose, praxisnahe Tipps direkt per E-Mail.",
+    takeaway_4: "Du lernst, deine Zeit und Energie auf das zu konzentrieren, was wirklich zählt.",
+    guarantee_badge_de: "100% Praxiserprobt in Deutschland",
+    transparency_role: "Mentor, Publizist & Executive Coach",
+    cta_consultation: "Unverbindliches Erstgespräch buchen",
+    transparency_label: "Wichtig zu wissen:",
+    transparency_quote: "\"Mein Coaching ist nicht fürs schnelle Reichwerden gedacht. Aber die finanzielle Freiheit, nicht mehr für einen Chef acht Stunden am Tag arbeiten zu müssen, ist das Ziel, auf das wir gemeinsam hinarbeiten – durch Arbeit, Klarheit und die richtige Strategie, nicht über Nacht.\"",
+    transparency_cta: "Jetzt kostenlos zum Newsletter anmelden",
+
+    // 7. Warum ein eigenes Business – 7 gute Gründe (PDF Abschnitt 7)
+    reasons_tag: "7 GUTE GRÜNDE",
+    reasons_title: "Diese 7 Vorteile",
+    reasons_title_gold: "bringt dir dein eigenes Business",
+    reasons_desc: "Warum es sich lohnt, jetzt den ersten Schritt zu machen und dein eigenes Business aufzubauen:",
+    reason_tag_1: "VORTEIL 01",
+    reason_title_1: "Du machst dein Wissen und deine Fähigkeiten zu Geld.",
+    reason_desc_1: "Verwandle dein Können und deine Erfahrung in ein profitables, nachhaltiges Angebot auf dem Markt.",
+    reason_tag_2: "VORTEIL 02",
+    reason_title_2: "Du hilfst mit deinem Business anderen Menschen.",
+    reason_desc_2: "Löse echte Probleme für deine Kunden und schaffe echten, spürbaren Mehrwert.",
+    reason_tag_3: "VORTEIL 03",
+    reason_title_3: "Du gewinnst automatisch neue Kunden statt sie mühsam suchen zu müssen.",
+    reason_desc_3: "Durch funktionierende Positionierung und Online-Kanäle kommen Kunden verlässlich zu dir.",
+    reason_tag_4: "VORTEIL 04",
+    reason_title_4: "Du steigerst deine Einnahmen spürbar.",
+    reason_desc_4: "Kein Arbeitgeber begrenzt dein Einkommen – dein Erfolg wächst direkt mit deinem Einsatz.",
+    reason_tag_5: "VORTEIL 05",
+    reason_title_5: "Du gewinnst echte Freiheit – zeitlich und finanziell.",
+    reason_desc_5: "Bestimme selbst über deinen Kalender, deinen Arbeitsort und deine finanzielle Zukunft.",
+    reason_tag_6: "VORTEIL 06",
+    reason_title_6: "Du entdeckst und nutzt dein volles Potenzial.",
+    reason_desc_6: "Wachse über alte Begrenzungen hinaus und baue ein Unternehmen auf, auf das du stolz bist.",
+    reason_tag_7: "VORTEIL 07 · HERZSTÜCK",
+    reason_title_7: "Du hast mehr Zeit für das, was zählt:",
+    reason_title_7_gold: "deine Familie",
+    reason_desc_7: "Echte Freiheit und finanzielle Souveränität bedeuten am Ende vor allem mehr wertvolle Zeit mit deiner Familie.",
+    signature_sub_badge: "★ Das wahre Fundament jedes Erfolgs",
+    chip_time_autonomy: "Zeitliche Souveränität",
+    chip_family_presence: "Familiäre Präsenz",
+    chip_quality_life: "Lebensqualität in Deutschland",
+
+    // 8. Meine Fachgebiete (PDF Abschnitt 8)
+    fach_tag: "Meine Fachgebiete",
     fach_title: "Wobei ich dir",
     fach_title_gold: "konkret helfe",
     fach_desc: "Erprobte Expertise aus über zwei Jahrzehnten Medien- und Unternehmenserfahrung:",
-    fach_b1: "Beratung & Strategie",
+    fach_b1: "Beratung",
     fach_t1: "Beratung für Privatpersonen, Unternehmen und Organisationen",
-    fach_d1: "Verbindung aus Migrationstheorie und Online-Marketing-Praxis – passgenau für deinen Werdegang und deine Marktchancen.",
-    fach_f1_1: "1:1 Analyse & glasklare Positionierung",
-    fach_f1_2: "Tragfähiger Gründungs- & Geschäftsplan",
-    fach_f1_3: "Rechtssicher im deutschen Wirtschaftssystem",
+    fach_d1: "Als Politikwissenschaftler mit Promotion im Bereich Migration und als Unternehmer im Online-Marketing verbinde ich theoretisches Wissen mit praktischer Erfahrung – gesammelt u. a. in der Beratung von Politikern und Institutionen in Marokko und Deutschland.",
+    fach_f1_1: "Theoretisches Wissen & praktische Erfahrung vereint",
+    fach_f1_2: "Beratung von Politikern und Institutionen",
+    fach_f1_3: "Fundierte Expertise für Marokko und Deutschland",
     fach_foot_1: "Individuell & Strategisch",
     fach_b2: "Zweisprachig (DE / AR)",
     fach_t2: "Workshops, Seminare & Vorträge",
-    fach_d2: "Auf Deutsch und Arabisch. Keine Sprachbarrieren, sondern klare Wissensvermittlung und praxiserprobte Anleitungen.",
-    fach_f2_1: "Komplett ohne Sprachbarriere (Deutsch & Arabisch)",
-    fach_f2_2: "Praxisnahe Schritt-für-Schritt Arbeitsblätter",
-    fach_f2_3: "Interaktiver Austausch & offene Fragerunden",
+    fach_d2: "Auf Deutsch und Arabisch, zu Projektmanagement, Kommunikation, Persönlichkeitsentwicklung, Journalismus und Online-Business.",
+    fach_f2_1: "Workshops auf Deutsch und Arabisch",
+    fach_f2_2: "Projektmanagement & Kommunikation",
+    fach_f2_3: "Persönlichkeitsentwicklung & Journalismus",
     fach_foot_2: "Bikulturelle Kompetenz",
-    fach_b3: "Reichweite & Vertrauen",
-    fach_t3: "Werbung mit Prominenten & Influencern",
-    fach_d3: "Influencer-Marketing, u. a. mit Fußball-Star Ailton für Reichweite und Vertrauen bei deiner Zielgruppe.",
-    fach_f3_1: "Kooperationen mit prominenten Persönlichkeiten",
-    fach_f3_2: "Sofortiger Vertrauensvorschuss im Zielmarkt",
-    fach_f3_3: "Maximale mediale Reichweite & Aufmerksamkeit",
+    fach_b3: "Prominente & Reichweite",
+    fach_t3: "Werbung mit Prominenten",
+    fach_d3: "Durch Influencer-Marketing – unter anderem mit dem brasilianischen Fußball-Star Ailton – helfe ich dir, mehr Reichweite und mehr Kunden zu gewinnen. Ich spreche dabei aus eigener Praxis, denn ich betreibe selbst mehrere Online- und Offline-Geschäfte.",
+    fach_f3_1: "Influencer-Marketing mit Fußball-Star Ailton",
+    fach_f3_2: "Mehr Reichweite und neue Kunden gewinnen",
+    fach_f3_3: "Erfahrung aus eigenen Online- und Offline-Geschäften",
     fach_foot_3: "Hohe Glaubwürdigkeit",
-    fach_b4: "Performance & Content",
-    fach_t4: "Digitale Sichtbarkeit für Selbstständige & Institutionen",
-    fach_d4: "SEO, Google- & Social-Media-Ads, Content Management für messbare Kundengewinnung.",
-    fach_f4_1: "Performance-Marketing (Meta & Google Ads)",
-    fach_f4_2: "SEO-Optimierung für Google Top-Platzierungen",
-    fach_f4_3: "Planbare Lead- & Neukundengewinnung",
-    fach_foot_4: "Messbarer ROI",
+    fach_b4: "Digitale Sichtbarkeit",
+    fach_t4: "Digitale Sichtbarkeit für Selbstständige, Lehrende & Institutionen",
+    fach_d4: "Von Google- und Social-Media-Werbung über suchmaschinenoptimierte Webseiten bis zur professionellen Social-Media-Betreuung – für einen starken Auftritt in den Medien.",
+    fach_f4_1: "Google- und Social-Media-Werbekampagnen",
+    fach_f4_2: "Suchmaschinenoptimierte Webseiten (SEO)",
+    fach_f4_3: "Professionelle Social-Media-Betreuung",
+    fach_foot_4: "Messbare Medienpräsenz",
+
+    // 9. Zahlen, die für sich sprechen (PDF Abschnitt 9)
+    kpi_section_title: "Meine Erfahrung in Zahlen",
     kpi_1: "Kunden insgesamt beraten",
-    kpi_2: "Jahre Erfahrung in DE",
+    kpi_2: "Jahre Erfahrung",
     kpi_3: "Erfolge gemeinsam mit Kunden",
     kpi_4: "Internationale Auszeichnungen",
-    step_tag: "Dein Weg zum Start",
+
+    // 10. Ablauf: So läuft die Zusammenarbeit ab (PDF Abschnitt 10)
+    step_tag: "Ablauf der Zusammenarbeit",
     step_title: "In 3 Schritten zu deinem eigenen Business",
-    step_desc: "Vom ersten Gedanken bis zum funktionierenden Kundenstrom:",
+    step_title_part1: "In 3 Schritten",
+    step_title_part2: "zu deinem eigenen Business",
+    step_desc: "So läuft die Zusammenarbeit ab:",
     step_pill_1: "Schritt 1",
     step_t1: "Kostenloses Erstgespräch",
-    step_d1: "Kennenlernen, Bestandsaufnahme und ehrliche Einschätzung deiner individuellen Potenziale.",
+    step_d1: "Wir lernen uns kennen, du erzählst mir von deiner Situation und deinem Ziel, und ich zeige dir ehrlich, ob und wie ich dir helfen kann.",
+    step_badge_1: "100% unverbindlich & diskret",
     step_pill_2: "Schritt 2",
     step_t2: "Dein individueller Fahrplan",
-    step_d2: "Maßgeschneiderte Strategie mit Dr. Jamal Bouassiria und seinem Team für deine Gründung und Positionierung.",
+    step_d2: "Gemeinsam mit mir und meinem Team entwickeln wir eine Strategie, die zu deiner Ausgangslage passt – egal ob du bei null startest oder schon erste Schritte gegangen bist. Du hast damit nicht nur mich, sondern ein ganzes Team hinter dir.",
+    step_badge_2: "Maßgeschneidert auf deine Stärken",
     step_pill_3: "Schritt 3",
     step_t3: "Umsetzung mit 1:1-Begleitung",
-    step_d3: "Direkte Begleitung, Feedbackschleifen und praxiserprobte Methoden für planbare Erfolge.",
+    step_d3: "Du setzt um, ich begleite dich eng – mit klaren Aufgaben, ehrlichem Feedback und den Methoden, die sich in der Praxis bewährt haben.",
+    step_badge_3: "Direkte Praxisbegleitung",
     step_cta: "Jetzt Platz im Erstgespräch sichern",
-    testi_tag: "Verifizierte Resultate",
-    testi_title: "Erfolge unserer Mentees",
-    testi_desc: "Echte Mentees mit Migrationsgeschichte, die den Schritt gewagt haben und heute florierende Unternehmen führen:",
+
+    // 11. Stimmen unserer Kund:innen (PDF Abschnitt 11)
+    testi_tag: "Stimmen unserer Kund:innen",
+    testi_title: "Das sagen Klient:innen über die Zusammenarbeit",
+    testi_title_part1: "Das sagen Klient:innen",
+    testi_title_part2: "über die Zusammenarbeit",
+    testi_desc: "Echte Erfahrungen von Menschen mit Migrationsgeschichte, die den Schritt gewagt haben und heute florierende Unternehmen führen:",
+    testi_verified: "Verifizierte Fallstudie",
     testi_b1: "6-stelliger Umsatz nach 12 Monaten",
     testi_q1: "\"Ich dachte, mein Akzent wäre ein Hindernis für den deutschen Markt. Dr. Jamal hat mir gezeigt, dass meine Geschichte meine größte Stärke ist. Heute beliefern wir Kunden in ganz Deutschland.\"",
     testi_r1: "E-Commerce & Handel",
+    testi_name_1: "Tariq El-Mansouri",
+    testi_loc_1: "Frankfurt am Main",
     testi_b2: "B2B Kundenstamm etabliert",
     testi_q2: "\"Durch das 1:1-Coaching und die Medienarbeit mit Dr. Jamal habe ich eine Marke aufgebaut, die sofort Vertrauen bei institutionellen Kunden und Unternehmen schafft.\"",
     testi_r2: "Beratung & Sprache",
+    testi_name_2: "Amina Benali",
+    testi_loc_2: "Düsseldorf",
     testi_b3: "Meisterbetrieb ausgebaut",
     testi_q3: "\"Das Pareto-Prinzip war der Gamechanger. Dr. Jamal hat mein Marketing und meine Abläufe optimiert. Jetzt habe ich volle Auftragsbücher und endlich wieder Zeit für meine Familie.\"",
     testi_r3: "Gebäudetechnik Meister",
-    faq_tag: "Klarheit & Transparenz",
+    testi_name_3: "Karim Al-Sayed",
+    testi_loc_3: "Bremen",
+    testi_read_case: "Fallstudie ansehen",
+
+    // 12. Häufige Fragen (FAQ) (PDF Abschnitt 12)
+    faq_tag: "Häufige Fragen",
     faq_title: "Häufig gestellte Fragen",
+    faq_title_part1: "Häufig gestellte",
+    faq_title_part2: "Fragen",
     faq_desc: "Alles, was du vor deiner kostenlosen Erstberatung wissen musst:",
-    faq_q1: "Für wen ist dieses Coaching genau geeignet?",
-    faq_a1: "Das Programm richtet sich speziell an Menschen mit Migrationsgeschichte in Deutschland – egal ob du noch im Angestelltenverhältnis steckst und nebenberuflich gründen möchtest, bereits eine Idee hast oder schon selbstständig bist und dein Unternehmen skalieren willst.",
-    faq_q2: "Brauche ich schon eine fertige Geschäftsidee, um zu starten?",
-    faq_a2: "Nein! Wenn du bereits Talente, Fähigkeiten oder Fachwissen hast, erarbeiten wir gemeinsam im Erstgespräch und den ersten Sessions das profitable Angebot, das im deutschen Markt am stärksten nachgefragt wird.",
+    faq_q1: "Für wen ist dieses Coaching geeignet?",
+    faq_a1: "Für Migrant:innen in Deutschland, die ein eigenes Business aufbauen oder ihr bestehendes Geschäft sichtbarer machen wollen – unabhängig vom Sprachniveau oder vom bisherigen Wissensstand.",
+    faq_q2: "Muss ich schon eine Geschäftsidee haben?",
+    faq_a2: "Nein. Viele meiner Klient:innen entdecken ihr \"verstecktes Expertenwissen\" erst gemeinsam mit mir im Coaching.",
     faq_q3: "In welcher Sprache findet das Coaching statt?",
-    faq_a3: "Das Coaching findet wahlweise auf <strong>Deutsch oder Arabisch</strong> statt (oder kombiniert). Du musst keine Angst vor Sprachfehlern haben – Dr. Jamal versteht deine Situation aus eigener Erfahrung und vermittelt dir auch das nötige Vokabular für den deutschen Markt.",
-    faq_q4: "Wie schnell kann ich erste konkrete Ergebnisse erwarten?",
-    faq_a4: "Nach dem Prinzip „Machen statt warten“ setzen wir bereits in den ersten Wochen deine digitale Präsenz auf und leiten Marketingmaßnahmen ein. Die meisten Teilnehmer gewinnen ihre ersten zahlenden Kunden innerhalb der ersten 30 bis 60 Tage.",
-    faq_q5: "Wie läuft das kostenlose Erstgespräch ab und was sind die nächsten Schritte?",
-    faq_a5: "Nach deiner Terminanfrage rufen wir dich zu deinem Wunschzeitpunkt an. In ca. 30 Minuten sprechen wir vertraulich über deine Ziele, deine aktuellen Hürden und prüfen ehrlich, ob eine Zusammenarbeit Sinn macht. Wenn alles passt, erhältst du deinen maßgeschneiderten Fahrplan.",
-    final_kicker: "Nur begrenzte Plätze für 1:1-Mentoring verfügbar",
+    faq_a3: "Auf <strong>Deutsch und auf Arabisch</strong> – je nachdem, was für dich angenehmer ist.",
+    faq_q4: "Wie schnell kann ich mit Ergebnissen rechnen?",
+    faq_a4: "Das hängt von deinem Einsatz ab. Ich verspreche keine Wunder über Nacht – aber mit der richtigen Strategie und konsequenter Umsetzung sind spürbare Fortschritte innerhalb weniger Monate realistisch.",
+    faq_q5: "Wie geht es nach der Anmeldung weiter?",
+    faq_a5: "Du bekommst zeitnah einen Termin für ein kostenloses Erstgespräch, in dem wir deine Situation und deine Ziele besprechen.",
+    faq_support_badge: "✦ SUPPORT & ORIENTIERUNG",
+    faq_support_title: "Noch eine persönliche Frage offen geblieben?",
+    faq_support_desc: "Besprich deine individuellen Fragen und deine Ausgangslage direkt im vertraulichen 1:1 Erstgespräch.",
+    faq_support_btn: "Jetzt Erstgespräch vereinbaren",
+
+    // 13. Abschluss-CTA (vor dem Footer) (PDF Abschnitt 13)
+    final_kicker: "Bereit für deinen nächsten Schritt?",
     final_title: 'Bereit, aus deiner Geschichte <span class="gold-gradient-text">deinen Erfolg</span> zu machen?',
-    final_sub: "Hör auf zu warten, bis alles perfekt ist. Sichere dir dein unverbindliches Erstgespräch mit Dr. Jamal Bouassiria und erfahre, wie du dein Unternehmen in Deutschland aufbaust.",
+    final_sub: "Du musst nicht perfekt Deutsch sprechen. Du brauchst kein Netzwerk, das dir alles vorgibt. Du brauchst einen ersten Schritt – und jemanden, der dir zeigt, wie es wirklich geht.",
     final_btn_book: "Jetzt kostenloses Erstgespräch vereinbaren",
     final_btn_ebook: "Kostenloses E-Book herunterladen",
+
+    // 14. Footer (PDF Abschnitt 14)
     footer_quote: "„Wenn du schon sagst: 'Ich schaffe das nicht', dann wirst du es nicht schaffen. Aber wenn du dich fragst: 'Wie kann ich es doch schaffen?' – dann hast du schon 80 % geschafft. Den Rest musst du nur noch tun.“",
-    footer_quote_author: "— Dr. Jamal Bouassiria",
-    footer_brand_desc: "Spezialisiert auf Existenzgründung, Markenaufbau und Medienpräsenz für Menschen mit Migrationsgeschichte in Deutschland.",
-    footer_contact_h: "Direkter Kontakt",
+    footer_quote_author: "— Jamal Bouassiria",
+    footer_brand_desc: "1:1 Business Coaching und Mentoring für Migrantinnen und Migranten in Deutschland. Dr. Jamal Bouassiria begleitet dich auf Deutsch und Arabisch zum erfolgreichen Unternehmen.",
+    footer_contact_h: "Kontakt",
     footer_nav_h: "Navigation",
+    footer_websites_h: "Unsere Webseiten",
     footer_rights: "© 2026 Dr. Jamal Bouassiria · Afripa Media Service. Alle Rechte vorbehalten.",
     footer_impressum: "Impressum",
     footer_datenschutz: "Datenschutz",
     mob_sticky_cta: "Erstgespräch sichern",
+
     // Funnel & Lead Modal Keys (DE)
     funnel_step_1_of_4: "Schritt 1 von 4",
     funnel_header_title: "Kostenloses Erstgespräch",
@@ -1051,6 +1190,7 @@ const I18N = {
     lead_success_toast: "Erfolg! Der Leitfaden wurde an {email} gesendet."
   },
   ar: {
+    // 1. Navigation
     nav_about: "عن د. جمال",
     nav_method: "المنهجية",
     nav_content: "محتوى التدريب",
@@ -1058,226 +1198,295 @@ const I18N = {
     nav_faq: "أسئلة شائعة",
     nav_cta: "احجز جلستك",
     drawer_lang_label: "Sprache / اللغة",
-    mob_problem: "المشكلة والحل",
+    mob_problem: "التحدي والحل",
     mob_reasons: "7 مزايا للبرنامج",
     mob_expertise: "مجالات الخبرة",
     mob_steps: "في 3 خطوات",
     mob_drawer_cta: "احجز جلستك الاستشارية المجانية",
-    hero_title: 'أنت هنا لتبني مشروعاً حقيقياً. <span class="gold-gradient-text">وليس لتبقى صغيراً.</span>',
-    hero_sub: 'مرافقة وتوجيه استراتيجي من الدكتور جمال بوعسيرية – خبرة عملية مثبتة، بدون عوائق لغوية وبأقصر الطرق لتأسيس وإنجاح شركتك في ألمانيا.',
-    hero_cta: 'احجز جلستك الاستشارية المجانية',
-    hero_about: 'عن د. جمال ↓',
-    hero_guarantee: 'سرية تامة 100% · استشارة أولية باللغة الألمانية أو العربية',
-    trust_1: 'استشارة أكثر من 7000 شخص',
-    trust_2: 'أكثر من 20 عاماً خبرة في ألمانيا',
-    trust_3: 'منهجية معتمدة ومثبتة',
-    pillar_kicker: 'منهجية النجاح الميدانية',
-    pillar_tag: 'ماذا يعني ذلك لنجاحك؟',
-    pillar_subtitle: 'ثلاث ركائز استراتيجية تحول التحديات إلى شركة مستقرة ومربحة في ألمانيا تحت إشراف د. جمال بوعسيرية.',
-    pillar_word_1: 'اللغة',
-    pillar_title_1: 'ليست عائقاً، بل ميزتك التنافسية الكبرى',
-    pillar_desc_1: 'يعتقد الكثيرون أنك تحتاج إلى ألمانية خالية من الأخطاء لتؤسس شركة ناجحة. الواقع: العملاء يشترون الثقة، الاحتراف والنتائج الملموسة وليس القواعد اللغوية. نحوّل ثنائيتك اللغوية لأقوى بطاقة تعريف لك.',
-    pillar_word_2: 'العلاقات',
-    pillar_title_2: 'فتح الأبواب المغلقة وشبكات الأعمال الموثوقة',
-    pillar_desc_2: 'بدون علاقات محلية قد تبدو السوق صعبة ومغلقة. مع الدكتور جمال، لن تبدأ من الصفر، بل تستفيد من شبكة علاقات B2B ممتدة لأكثر من 20 عاماً، وتواصل مباشر مع رواد الأعمال وصنّاع القرار من اليوم الأول.',
-    pillar_word_3: 'الاستراتيجية',
-    pillar_title_3: 'تحويل الجهد والعمل الشاق إلى شركة رابحة ومستقرة',
-    pillar_desc_3: 'الفكرة وحدها لا تكفي في السوق الألماني. ما يصنع الفرق هو التنفيذ الدقيق: تأسيس قانوني سليم، تموضع تسويقي واضح، واستقطاب منتظم للعملاء دون تضييع الوقت في التعقيدات البيروقراطية والأخطاء المكلفة.',
-    banner_brand_pre: 'كن',
-    banner_brand_post: 'شريك النجاح',
-    banner_text: 'يمنحك الدكتور جمال وصولاً مباشراً إلى خلاصة الخبرة الميدانية التي اعتمد عليها أكثر من 7000 شخص لبناء مشاريع رائدة ومستدامة في ألمانيا. تدريب تطبيقي 100%، بدون حواجز لغوية وبمنتهى الاحترافية والشفافية.',
-    banner_cta: 'احجز جلستك الاستشارية المجانية الآن',
-    stat_prefix_1: 'أكثر من',
-    stat_label_1: 'شخص تم تقديم الاستشارة لهم',
-    stat_prefix_2: 'أكثر من',
-    stat_label_2: 'عاماً من الخبرة في ألمانيا',
-    stat_prefix_3: 'حتى',
-    stat_label_3: 'تطبيق عملي وسرية تامة',
-    methode_tag: 'التركيز بدل التشتت',
-    methode_title: 'مبدآن جوهريان',
-    methode_title_gold: 'يغيّران كل شيء',
-    methode_desc: 'النجاح في تأسيس الأعمال لا يحتاج إلى تردد طويل، بل يعتمد على أسس واضحة ومجرّبة:',
-    methode_card1_title: '1. مبدأ باريتو (80 / 20)',
-    methode_card1_desc: 'ركّز طاقتك على 20% من الخطوات الاستراتيجية التي تحقق 80% من نتائجك وأرباحك – دون تضييع الوقت في تفاصيل هامشية.',
-    methode_card1_pill: '80% من النتائج من 20% من الجهد المركزي',
-    methode_card2_title: '2. البدء والتنفيذ بدل الانتظار',
-    methode_card2_desc: 'السعي للكمال الزائف هو أكبر عائق أمام رواد الأعمال الجدد. من ينتظر حتى يصبح كل شيء مثالياً لن يبدأ أبداً. من ينطلق ويطوّر في الميدان يصل للقمة.',
-    methode_card2_pill: 'سرعة التنفيذ والتطوير تتفوق على الانتظار',
-    benefits_tag: 'خطوات التحول والنمو',
-    benefits_title: 'نتعلم ونبني معاً',
-    benefits_title_gold: 'خطوة بخطوة',
-    benefits_desc: 'نحوّل رؤيتك وفكرتك من مجرد خطة على الورق إلى شركة حقيقية، مربحة وقانونية 100% في ألمانيا:',
-    benefit_pillar_1: 'الركيزة 01 · الحضور الرقمي',
-    benefit_title_1: 'بناء حضورك الرقمي المتكامل',
-    benefit_desc_1: 'موقع إلكتروني، متجر، هوية بصرية وتصميم احترافي يمنح مشروعك مصداقية فورية من اليوم الأول.',
-    benefit_item_1_1: 'موقع احترافي وتصميم عالي التحويل',
-    benefit_item_1_2: 'إعداد المتجر الإلكتروني والدفع الرقمي',
-    benefit_item_1_3: 'مطابقة قانونية كاملة لمعايير الخصوصية DSGVO',
-    benefit_tag_1: 'السيادة الرقمية',
-    benefit_pillar_2: 'الركيزة 02 · الوصول والعملاء',
-    benefit_title_2: 'الظهور التسويقي واستقطاب العملاء',
-    benefit_desc_2: 'حملات إعلانية دقيقة واستراتيجيات تسويق موجهة في الوسائط الرقمية والتقليدية لمضاعفة المبيعات والأرباح.',
-    benefit_item_2_1: 'تسويق الأداء عبر ميتا وجوجل (Performance Marketing)',
-    benefit_item_2_2: 'ظهور إعلامي وعلاقات عامة مستهدفة في ألمانيا',
-    benefit_item_2_3: 'تدفق منتظم ومدروس للعملاء الجدد',
-    benefit_tag_2: 'نمو قابل للقياس',
-    benefit_pillar_3: 'الركيزة 03 · البراندينغ والمكانة',
-    benefit_title_3: 'بناء علامتك الشخصية (Personal Branding)',
-    benefit_desc_3: 'استثمار أكثر من 20 عاماً من خبرة د. جمال في التعامل مع وسائل الإعلام وصنّاع القرار لترسيخ مكانتك كخبير موثوق.',
-    benefit_item_3_1: 'تموضع قوي كخبير مطلوب في مجالك',
-    benefit_item_3_2: 'ظهور إعلامي، مقابلات وحضور واثق على المنصات',
-    benefit_item_3_3: 'وصول مباشر لشبكة علاقات B2B نمت على مدار 20 عاماً',
-    benefit_tag_3: 'علامة تجارية لا تُنسى',
-    inhalte_tag: 'خطة تدريب وتطبيق عملية',
-    inhalte_title: 'خطوة بخطوة',
-    inhalte_title_gold: 'نحو شركتك المستقلة',
-    inhalte_desc: 'ورشات عمل، ندوات تدريبية واستشارات فردية 1:1 باللغتين الألمانية والعربية:',
-    mod_tag_1: 'الوحدة 01',
-    mod_1: 'إدارة المشاريع والتخطيط',
-    mod_tag_2: 'الوحدة 02',
-    mod_2: 'تطوير الشخصية والقيادة',
-    mod_tag_3: 'الوحدة 03',
-    mod_3: 'بناء العلامة التجارية وصناعة الهوية',
-    mod_tag_4: 'الوحدة 04',
-    mod_4: 'تأسيس الشركة والإجراءات القانونية',
-    mod_tag_5: 'الوحدة 05',
-    mod_5: 'التدريب الصحفي والعلاقات العامة الرقمية',
-    mod_tag_6: 'الوحدة 06',
-    mod_6: 'تطوير المواقع، كتابة الإعلانات والبيع الرقمي',
-    takeaway_badge: 'عوائد عملية فورية',
-    takeaway_title: 'ما ستحصل عليه عملياً:',
-    takeaway_1: 'نظام إلكتروني مجرّب للوصول إلى الاستقلال المالي.',
-    takeaway_2: 'استراتيجيات عملية للظهور الإعلامي والعلاقات العامة.',
-    takeaway_3: 'نصائح وإرشادات تطبيقية منتظمة تصلك عبر البريد.',
-    takeaway_4: 'تركيز كامل على الركائز الأساسية التي تصنع الفارق الحقيقي.',
-    transparency_label: 'شفافية ومصداقية تامة:',
-    transparency_quote: '"برنامجي التدريبي ليس وسيلة للثراء السريع الزائف، بل للوصول إلى الحرية المالية والاستقلال عن العمل الوظيفي اليومي، وهذا هو الهدف الحقيقي الذي نعمل معاً لتحقيقه."',
-    transparency_cta: 'اشترك مجاناً في القائمة البريدية الآن',
-    reasons_tag: 'دوافعك للنجاح',
-    reasons_title: 'هذه المزايا السبع',
-    reasons_title_gold: 'يحققها لك مشروعك الخاص',
-    reasons_desc: 'لماذا يستحق الأمر أن تبدأ اليوم في وضع الأساس لشركتك المستقلة في ألمانيا:',
-    reason_tag_1: 'الربحية',
-    reason_title_1: 'حوّل معرفتك وخبراتك إلى دخل حقيقي ومربح',
-    reason_desc_1: 'استثمر تجاربك المهنية والشخصية لتبني عروضاً واستشارات مطلوبة ومربحة في السوق الألماني.',
-    reason_tag_2: 'الأثر والقيمة',
-    reason_title_2: 'ساعد الآخرين من خلال خدمات مشروعك',
-    reason_desc_2: 'قدّم حلولاً حقيقية لمشاكل عملائك واصنع أثراً إيجابياً وملموساً في مجتمعك.',
-    reason_tag_3: 'استقطاب منتظم',
-    reason_title_3: 'استقطب عملاء جدد بانتظام وبشكل مدروس',
-    reason_desc_3: 'عبر مسارات تسويقية رقمية وقنوات بيع مجرّبة تضمن لك تدفقاً مستمراً بدون عناء.',
-    reason_tag_4: 'النمو المالي',
-    reason_title_4: 'ضاعف أرباحك وعوائدك المالية بوضوح',
-    reason_desc_4: 'لا وجود لسقف يفرضه عليك رب عمل – دخلك يتصاعد طردياً مع نجاحك وقيمة ما تقدمه.',
-    reason_tag_5: 'الحرية والاستقلال',
-    reason_title_5: 'حرية حقيقية – في وقتك وقراراتك المالية',
-    reason_desc_5: 'تحكّم بنفسك في جدول أعمالك، مكان عملك ومسار مستقبلك بكل استقلالية.',
-    reason_tag_6: 'إطلاق الإمكانات',
-    reason_title_6: 'اكتشف واستثمر كامل قدراتك الكامنة',
-    reason_desc_6: 'تجاوز الحدود الوظيفية التقليدية وابنِ مشروعاً تفتخر به أنت وعائلتك.',
-    reason_tag_7: 'الجوهر وأسمى الغايات',
-    reason_title_7: 'مزيد من الوقت لما يهمك حقاً:',
-    reason_title_7_gold: 'عائلتك الكريمة',
-    reason_desc_7: 'الأمان المالي والحرية الزمنية يعنيان قبل كل شيء: جودة حياة حقيقية، حضور أسري دافئ ولحظات لا تُقدّر بثمن مع من تحب.',
+
+    // 1. Hero
+    hero_kicker: "منذ عام 2008 إلى جانب المهاجرين ورواد الأعمال في ألمانيا",
+    hero_title: 'جئت إلى ألمانيا لتبني مشروعاً حقيقياً. <span class="gold-gradient-text">وليس لتبقى صغيراً.</span>',
+    hero_sub: 'أنا د. جمال بوعسيرية – نشأت في المغرب وجئت إلى ألمانيا دون ألمانية مثالية ودون شبكة علاقات. اليوم أساعد المهاجرات والمهاجرين على بناء مشاريع ناجحة ومربحة بقوتهم الذاتية. مرافقة 1:1، صادقة ودون وعود وهمية.',
+    hero_cta: "احجز جلستك الاستشارية المجانية الآن",
+    hero_about: "تعرف على قصتي ↓",
+    hero_guarantee: "سرية تامة 100% · استشارة أولية باللغة الألمانية أو العربية",
+    trust_1: "استشارة أكثر من 7000 شخص",
+    trust_2: "أكثر من 20 عاماً خبرة",
+    trust_3: "حائز على أكثر من 4 جوائز دولية",
+    hero_portals_title: "مواقعنا ومشاريعنا الرسمية:",
+    hero_portal_books: "كتبي ومؤلفاتي",
+    hero_portal_choose: "اختر موقعاً للزيارة...",
+    hero_portal_visit: "زيارة الموقع ↗",
+
+    // 2. Das Problem
+    problem_tag: "المشكلة والواقع (خلق التطابق)",
+    problem_title: "ربما تعرف هذا الواقع بنفسك",
+    problem_cat_1: "اللغة والظهور المهني",
+    problem_cat_2: "العائلة والقدوة التجارية",
+    problem_cat_3: "شبكة العلاقات وفتح الأبواب",
+    problem_cat_4: "هيكلة الفكرة وتحويلها لمشروع",
+    problem_cat_5: "العقلية وتجاوز الحواجز",
+    problem_1: "لا تتحدث الألمانية بشكل مثالي – ولذلك تتردد في الظهور والانطلاق.",
+    problem_2: "عائلتك لا تستطيع مساعدتك في الأسئلة التجارية لأنها لم تؤسس شركة من قبل.",
+    problem_3: "ليس لديك شبكة علاقات ومعارف في ألمانيا تفتح لك الأبواب.",
+    problem_4: "لديك فكرة أو موهبة – لكن لم يسبق لأحد أن علّمك كيف تحولها حقاً إلى مشروع تجاري.",
+    problem_5: "فكرت من قبل: «بالنسبة لأشخاص مثلي، الأمر هنا ببساطة أصعب».",
+    problem_res_title: "هذا صحيح. ورغم ذلك، النجاح ممكن تماماً.",
+    problem_res_text: "أنا الدليل الحي على ذلك – وعلى مدار أكثر من 20 عاماً ساعدت آلاف الأشخاص الذين انطلقوا من نفس نقطة بدايتك للوصول إلى أهدافهم.",
+    problem_res_cta: "احجز جلستك الاستشارية غير الملزمة",
+    problem_perspective: "المنظور والحل",
+
+    // 3. Vorstellung: Wer ist Jamal Bouassiria
     about_portrait_role: "مؤسس، كاتب ومستشار أعمال",
     about_badge_exp: "دكتوراه من جامعة بريمن",
-    about_tag: "قصة نجاح واقعية وملهمة",
+    about_tag: "التعريف بالمرشد",
     about_title: "اسمي د. جمال بوعسيرية",
     about_roles: "عالم سياسي · صحفي · رائد أعمال في الإعلام الرقمي والعلاقات العامة",
-    about_bio_1: "نشأت في المغرب وجئت إلى ألمانيا بعد البكالوريا لدراسة العلوم السياسية – دون شبكة أمان عائلية، دون معارف مسبقة، وبلغة كان عليّ تعلمها وبناؤها من الصفر.",
+    about_bio_1: "نشأت في المغرب وجئت إلى ألمانيا بعد البكالوريا لدراسة العلوم السياسية – دون شبكة أمان عائلية، دون معارف، وبلغة كان عليّ تعلمها وبناؤها من الصفر.",
     about_bio_2: "خلال دراستي للدكتوراه في جامعة بريمن حول قضايا الهجرة، اكتشفت شغفي بالإعلام الرقمي. ومن هناك أطلقت بوابتي الإخبارية الألمانية-العربية التي تشكل حتى اليوم جسراً إعلامياً بين ألمانيا والقارة الأفريقية.",
     about_bio_3: "في عام 2016، أسست وكالتي <strong>Afripa Media Service</strong>. ومنذ ذلك الحين أقدم الاستشارات لرواد الأعمال، الشخصيات العامة، وصنّاع القرار في ألمانيا والمغرب في مجالات التسويق الرقمي، العلاقات العامة وبناء الحضور المؤسسي.",
+    about_bio_4: "ما يحفزني: لقد عشت بنفسي تجربة البدء من الصفر في هذا البلد. ولهذا فإن تدريبي ليس نظريات كتب – بل مبني على ما أثبت نجاحه واقعياً معي ومع مئات من المتدربين لدي.",
     about_quote: "ابدأ أولاً، ثم حسّن وطوّر. لأن السعي للكمال الزائف وكلمة 'يوماً ما' هما أكبر معطّل للنجاح.",
     about_btn_talk: "تحدث مباشرة مع د. جمال",
     about_btn_more: "تعرف على مسيرتي وخبرتي",
+    about_media_badge_books: "منشورات ومؤلفات",
+    about_media_title_books: "مؤلف وناشر مجلة",
+    about_media_desc_books: "د. جمال بوعسيرية هو ناشر المجلة المرموقة <em>«مجلة نجاح»</em> ومؤلف أدلة عملية لرواد الأعمال والمهاجرين في ألمانيا.",
+    about_media_btn_books: "📚 اكتشف كتبي ومؤلفاتي ↗",
+    about_media_badge_studio: "إعلام وانتشار رقمي",
+    about_media_title_studio: "استوديو إعلامي وإنتاج مرئي خاص",
+    about_media_desc_studio: "من خلال إنتاجه التلفزيوني والإعلامي الخاص (GAI Africa TV وAfripa Media Service)، يقدم د. جمال خبرة عميقة في الظهور الرقمي وبناء الحضور الاحترافي.",
+    about_media_tag_studio: "خبرة احترافية في العلاقات العامة والاستوديو",
+
+    // 4. Die Methode
+    methode_tag: "المنهجية المتبعة",
+    methode_title: "مبدآن جوهريان",
+    methode_title_gold: "يغيّران كل شيء",
+    methode_desc: "النجاح في العمل الحر لا يحتاج إلى تردد طويل، بل يعتمد على أسس واضحة ومجرّبة:",
+    methode_card1_title: "1. مبدأ باريتو (80 / 20)",
+    methode_principle_1: "المبدأ 01 · التركيز",
+    methode_card1_desc: "ركّز طاقتك على 20% من الخطوات الاستراتيجية التي تحقق 80% من نتائجك وأرباحك – دون تضييع الوقت في تفاصيل هامشية.",
+    methode_card1_pill: "80% من النتائج من 20% من الجهد المركزي",
+    methode_card2_title: "2. البدء والتنفيذ بدل الانتظار",
+    methode_principle_2: "المبدأ 02 · التنفيذ",
+    methode_card2_desc: "السعي للكمال الزائف هو أكبر عائق أمام رواد الأعمال الجدد. من ينتظر حتى يصبح كل شيء مثالياً لن يبدأ أبداً. من ينطلق ويطوّر في الميدان يصل للقمة.",
+    methode_card2_pill: "سرعة التنفيذ والتطوير تتفوق على الانتظار",
+
+    // 5. Was du erreichst
+    benefits_tag: "ما ستحققه من خلال التدريب الفردي 1:1",
+    benefits_title: "نتعلم وننمو معاً",
+    benefits_title_gold: "خطوة بخطوة",
+    benefits_desc: "نحوّل رؤيتك وفكرتك إلى شركة حقيقية، مربحة وقانونية 100% في ألمانيا:",
+    benefit_pillar_1: "الركيزة 01 · الحضور الرقمي",
+    benefit_title_1: "بناء حضورك الرقمي المتكامل",
+    benefit_desc_1: "موقع إلكتروني، متجر، هوية بصرية وتصميم احترافي يمنح مشروعك مصداقية فورية من اليوم الأول.",
+    benefit_item_1_1: "موقع احترافي وتصميم عالي المصداقية",
+    benefit_item_1_2: "إعداد المتجر الإلكتروني والدفع الرقمي",
+    benefit_item_1_3: "مظهر مؤسسي موثوق منذ اليوم الأول",
+    benefit_tag_1: "السيادة الرقمية",
+    benefit_pillar_2: "الركيزة 02 · الوصول والعملاء",
+    benefit_title_2: "الظهور التسويقي واستقطاب العملاء",
+    benefit_desc_2: "حملات إعلانية دقيقة واستراتيجيات تسويق موجهة في الوسائط الرقمية والتقليدية لمضاعفة المبيعات والأرباح.",
+    benefit_item_2_1: "إعلانات مستهدفة في الوسائط الرقمية والتقليدية",
+    benefit_item_2_2: "ظهور إعلامي وعلاقات عامة موجهة",
+    benefit_item_2_3: "تدفق منتظم ومدروس للعملاء والمبيعات",
+    benefit_tag_2: "نمو قابل للقياس",
+    benefit_pillar_3: "الركيزة 03 · البراندينغ الشخصي",
+    benefit_title_3: "بناء علامتك الشخصية (Personal Branding)",
+    benefit_desc_3: "استثمار سنوات خبرة د. جمال في التعامل مع وسائل الإعلام والمشاهير وصنّاع القرار لترسيخ مكانتك كخبير موثوق.",
+    benefit_item_3_1: "تموضع قوي كخبير موثوق ومطلوب",
+    benefit_item_3_2: "خبرة واسعة في الإعلام والشخصيات العامة",
+    benefit_item_3_3: "مصداقية عالية ومكانة رائدة في مجالك",
+    benefit_tag_3: "علامة تجارية بارزة",
+
+    // 6. Was dich konkret erwartet
+    inhalte_tag: "ما ينتظرك عملياً في البرنامج",
+    inhalte_title: "خطوة بخطوة",
+    inhalte_title_gold: "نحو شركتك المستقلة",
+    inhalte_desc: "أقدم ورشات عمل، ندوات تدريبية واستشارات فردية 1:1 باللغتين الألمانية والعربية – حول المحاور التالية:",
+    mod_tag_1: "المحور 01",
+    mod_1: "إدارة المشاريع والتخطيط",
+    mod_tag_2: "المحور 02",
+    mod_2: "تطوير الشخصية والقيادة",
+    mod_tag_3: "المحور 03",
+    mod_3: "بناء العلامة التجارية وصناعة الهوية (Branding)",
+    mod_tag_4: "المحور 04",
+    mod_4: "تأسيس شركتك وإجراءات الانطلاق",
+    mod_tag_5: "المحور 05",
+    mod_5: "التدريب الصحفي والعلاقات العامة الرقمية<span class=\"module-name-sub\">الصحف، الإعلام واكتساب اهتمام حقيقي</span>",
+    mod_tag_6: "المحور 06",
+    mod_6: "تطوير المواقع، كتابة الإعلانات والبيع الرقمي",
+    takeaway_badge: "عوائد عملية فورية",
+    takeaway_title: "ما ستكتسبه وتطبقه عملياً:",
+    takeaway_1: "تتعلم خطوة بخطوة نظاماً إلكترونياً مجرّباً للوصول إلى الاستقلال المالي.",
+    takeaway_2: "تكتشف كيف تستخدم الشركات الناجحة الصحافة والعلاقات العامة الرقمية.",
+    takeaway_3: "تحصل بانتظام على نصائح وإرشادات تطبيقية مباشرة عبر بريدك الإلكتروني.",
+    takeaway_4: "تتعلم تركيز وقتك وطاقتك على ما يصنع الفارق الحقيقي فقط.",
+    guarantee_badge_de: "مجرّب عملياً 100% في ألمانيا",
+    transparency_role: "مرشد أعمال، كاتب صحفي ومدرّب تنفيذي",
+    cta_consultation: "احجز استشارتك المجانية الأولى",
+    transparency_label: "مهم جداً أن تعرف:",
+    transparency_quote: "\"برنامجي التدريبي ليس وسيلة للثراء السريع الزائف. لكن الوصول إلى الحرية المالية والاستقلال عن العمل الوظيفي اليومي هو الهدف الذي نعمل معاً لتحقيقه – بالعمل الواضح والاستراتيجية الصحيحة، وليس بين ليلة وضحاها.\"",
+    transparency_cta: "اشترك مجاناً في القائمة البريدية الآن",
+
+    // 7. Warum ein eigenes Business
+    reasons_tag: "7 أسباب حقيقية",
+    reasons_title: "هذه المزايا السبع",
+    reasons_title_gold: "يحققها لك مشروعك الخاص",
+    reasons_desc: "لماذا يستحق الأمر أن تبدأ اليوم في تأسيس شركتك المستقلة في ألمانيا:",
+    reason_tag_1: "الميزة 01",
+    reason_title_1: "تحوّل معرفتك ومواهبك إلى دخل مالي حقيقي.",
+    reason_desc_1: "استثمر خبراتك ومهاراتك لتبني خدمات وعروضاً مربحة ومطلوبة بقوة في السوق.",
+    reason_tag_2: "الميزة 02",
+    reason_title_2: "تساعد الآخرين من خلال خدمات مشروعك.",
+    reason_desc_2: "قدّم حلولاً ملموسة لمشاكل عملائك واصنع أثراً إيجابياً وملموساً.",
+    reason_tag_3: "الميزة 03",
+    reason_title_3: "تستقطب عملاء جدد تلقائياً بدل البحث المرهق عنهم.",
+    reason_desc_3: "عبر أنظمة التسويق الرقمي والقنوات الاحترافية التي تجذب العملاء إليك.",
+    reason_tag_4: "الميزة 04",
+    reason_title_4: "تضاعف أرباحك وعوائدك المالية بوضوح.",
+    reason_desc_4: "لا يوجد سقف يفرضه عليك رب عمل – دخلك ينمو مباشرة مع حجم إنجازك وقيمتك.",
+    reason_tag_5: "الميزة 05",
+    reason_title_5: "تكسب حرية حقيقية – في وقتك وقراراتك المالية.",
+    reason_desc_5: "تحكّم بنفسك في جدول مواعيدك، مكان عملك ومسار مستقبلك بكل استقلالية.",
+    reason_tag_6: "الميزة 06",
+    reason_title_6: "تكتشف وتستثمر كامل قدراتك وإمكاناتك.",
+    reason_desc_6: "تجاوز الحدود الوظيفية التقليدية وابنِ صرحاً تفتخر به أنت وعائلتك.",
+    reason_tag_7: "الميزة 07 · أسمى الغايات",
+    reason_title_7: "مزيد من الوقت لما يهمك حقاً:",
+    reason_title_7_gold: "عائلتك الكريمة",
+    reason_desc_7: "الأمان المالي والاستقلال الزمني يعنيان قبل كل شيء: جودة حياة حقيقية وحضور دافئ مع من تحب.",
+    signature_sub_badge: "★ الأساس الحقيقي والغاية الكبرى لكل نجاح",
+    chip_time_autonomy: "استقلالية الوقت وحرية القرار",
+    chip_family_presence: "حضور عائلي دافئ ومستمر",
+    chip_quality_life: "جودة حياة كريمة في ألمانيا",
+
+    // 8. Meine Fachgebiete
     fach_tag: "مجالات الخبرة والاختصاص",
     fach_title: "مجالات الخبرة التي أساعدك فيها",
     fach_title_gold: "بشكل عملي وملموس",
     fach_desc: "خبرة ميدانية مجرّبة مستخلصة من أكثر من عقدين في الإعلام وتأسيس الشركات في ألمانيا:",
-    fach_b1: "الاستشارة والاستراتيجية",
+    fach_b1: "الاستشارة",
     fach_t1: "استشارات للأفراد، الشركات والمنظمات",
-    fach_d1: "دمج عميق بين الفهم الدقيق لواقع الهجرة والممارسة التطبيقية للتسويق الرقمي – مصممة خصيصاً لمسارك وفرصك في السوق الألماني.",
-    fach_f1_1: "تحليل شخصي 1:1 وتموضع تسويقي واضح",
-    fach_f1_2: "خطة عمل وتأسيس متكاملة ومستدامة",
-    fach_f1_3: "مطابقة قانونية تامة للنظام الاقتصادي الألماني",
+    fach_d1: "بصفتي باحثاً في العلوم السياسية بدرجة دكتوراه في الهجرة ورائد أعمال في التسويق الرقمي، أدمج بين المعرفة النظرية والخبرة الميدانية – المكتسبة من استشارة سياسيين ومؤسسات كبرى في المغرب وألمانيا.",
+    fach_f1_1: "دمج المعرفة الأكاديمية بالخبرة الميدانية",
+    fach_f1_2: "استشارات موجهة للشركات، المنظمات والشخصيات العامة",
+    fach_f1_3: "خبرة عملية موثقة في ألمانيا والمغرب",
     fach_foot_1: "استراتيجي ومخصص",
     fach_b2: "ثنائي اللغة (ألماني / عربي)",
     fach_t2: "ورش عمل، ندوات ومحاضرات تدريبية",
-    fach_d2: "باللغتين الألمانية والعربية. بدون حواجز لغوية، بل بنقل واضح للمعرفة وإرشادات تطبيقية فورية.",
-    fach_f2_1: "بدون أي عائق لغوي (ألماني وعربي)",
-    fach_f2_2: "نماذج وأوراق عمل تطبيقية خطوة بخطوة",
-    fach_f2_3: "تفاعل مباشر وإجابة على كافة التساؤلات",
+    fach_d2: "باللغتين الألمانية والعربية، حول إدارة المشاريع، التواصل، التطوير الذاتي، الصحافة وإطلاق الأعمال الرقمية.",
+    fach_f2_1: "برامج تدريبية باللغتين الألمانية والعربية",
+    fach_f2_2: "إدارة المشاريع والتواصل الفعال",
+    fach_f2_3: "تطوير الذات والصحافة الرقمية",
     fach_foot_2: "كفاءة ثنائية الثقافة",
-    fach_b3: "الانتشار والمصداقية",
+    fach_b3: "المشاهير والانتشار",
     fach_t3: "التسويق عبر المشاهير والشخصيات العامة",
-    fach_d3: "حملات تسويقية وتأثيرية، من بينها التعاون مع نجم كرة القدم أيلتون، لصناعة مصداقية وانتشار واسع بين جمهورك المستهدف.",
-    fach_f3_1: "تعاون استراتيجي مع شخصيات معروفة",
-    fach_f3_2: "ثقة ومصداقية فورية لدى العملاء الجدد",
-    fach_f3_3: "انتشار إعلامي وجذب واسع للأنظار",
+    fach_d3: "من خلال التسويق التأثيري – بما في ذلك التعاون مع نجم كرة القدم البرازيلي أيلتون – أساعدك على اكتساب انتشار واسع وثقة عملاء جدد. أتحدث هنا من واقع عملي لأنني أدير بنفسي مشاريع رقمية وواقعية متعددة.",
+    fach_f3_1: "حملات تسويقية مع مشاهير وشخصيات كبرى (مثل أيلتون)",
+    fach_f3_2: "كسب ثقة سريعة وقاعدة جماهيرية واسعة",
+    fach_f3_3: "مستمد من إدارة مشاريع تجارية واقعية ورقمية",
     fach_foot_3: "مصداقية عالية",
-    fach_b4: "الأداء والمحتوى",
-    fach_t4: "الظهور الرقمي لرواد الأعمال والمؤسسات",
-    fach_d4: "تحسين محركات البحث، إعلانات جوجل ومواقع التواصل، وإدارة المحتوى لاستقطاب عملاء جدد بشكل دوري ومستمر.",
-    fach_f4_1: "تسويق الأداء عبر إعلانات ميتا وجوجل",
-    fach_f4_2: "تصدر المراتب الأولى في نتائج بحث جوجل",
-    fach_f4_3: "تدفق مستمر ومدروس للعملاء المحتملين",
-    fach_foot_4: "عائد استثماري ملموس",
+    fach_b4: "الظهور الرقمي",
+    fach_t4: "الظهور الرقمي لرواد الأعمال، الأساتذة والمؤسسات",
+    fach_d4: "من إعلانات جوجل ومنصات التواصل الاجتماعي، إلى المواقع المتوافقة مع محركات البحث، وحتى الإدارة المتكاملة للحسابات – لحضور إعلامي ورقمي قوي ومؤثر.",
+    fach_f4_1: "إعلانات جوجل ومنصات التواصل الاجتماعي",
+    fach_f4_2: "مواقع إلكترونية مهيأة لمحركات البحث (SEO)",
+    fach_f4_3: "إدارة احترافية للحسابات والظهور الإعلامي",
+    fach_foot_4: "ظهور رقمي مدروس",
+
+    // 9. Zahlen
+    kpi_section_title: "خبرتي العملية بالأرقام",
     kpi_1: "إجمالي العملاء المستفيدين من الاستشارات",
     kpi_2: "عاماً من الخبرة في ألمانيا",
     kpi_3: "قصة نجاح مشتركة مع العملاء",
     kpi_4: "جوائز وتكريمات دولية",
-    step_tag: "خارطة طريقك للانطلاق",
+
+    // 10. Ablauf
+    step_tag: "خارطة طريق التعاون",
     step_title: "في 3 خطوات نحو شركتك المستقلة",
-    step_desc: "من الفكرة الأولى وحتى التدفق المستمر والمنتظم للعملاء:",
+    step_title_part1: "في 3 خطوات",
+    step_title_part2: "نحو شركتك المستقلة",
+    step_desc: "هكذا تجري مراحل العمل المشترك:",
     step_pill_1: "الخطوة 1",
     step_t1: "جلسة استشارية أولية مجانية",
-    step_d1: "تعارف شخصي، تحليل دقيق لواقعك الحالي وتقييم شفاف لإمكاناتك وفرص نجاحك في ألمانيا.",
+    step_d1: "نتعرف على بعضنا البعض، تحدثني عن واقعك وأهدافك، وأوضح لك بكل صدق وشفافية كيف يمكنني مساعدتك.",
+    step_badge_1: "100% استشارة سرية وغير ملزمة",
     step_pill_2: "الخطوة 2",
     step_t2: "خطة عمل مخصصة لمشروعك",
-    step_d2: "استراتيجية تنفيذية مصممة خصيصاً مع د. جمال وفريقه لتأسيس شركتك وتموضعك القوي في السوق.",
+    step_d2: "معي ومع فريقي المتخصص نضع استراتيجية تناسب نقطة انطلاقك – سواء كنت تبدأ من الصفر أو قطعت أولى الخطوات. سيكون خلفك فريق متكامل يدعمك.",
+    step_badge_2: "مفصلة خصيصاً وفق قدراتك",
     step_pill_3: "الخطوة 3",
     step_t3: "التنفيذ والمرافقة الفردية 1:1",
-    step_d3: "مرافقة مباشرة وميدانية، تقييم مستمر وأدوات مجرّبة لتحقيق نتائج ونجاحات مالية قابلة للقياس.",
+    step_d3: "أنت تنفذ وأنا أرافقك خطوة بخطوة – بمهام واضحة، تقييم مستمر وأدوات أثبتت نجاحها الفعلي في الميدان.",
+    step_badge_3: "مرافقة ميدانية تطبيقية مستمرة",
     step_cta: "احجز موعد جلستك الاستشارية الآن",
-    testi_tag: "نتائج موثقة ومثبتة",
-    testi_title: "قصص نجاح متدربينا",
-    testi_desc: "رواد أعمال حقيقيون من خلفيات مهاجرة اتخذوا القرار ويديرون اليوم شركات مزدهرة ومربحة في ألمانيا:",
+
+    // 11. Stimmen
+    testi_tag: "شهادات متدربينا",
+    testi_title: "ما يقوله عملاؤنا عن تجربة التعاون",
+    testi_title_part1: "ما يقوله عملاؤنا",
+    testi_title_part2: "عن تجربة التعاون والنتائج",
+    testi_desc: "قصص حقيقية لرواد أعمال من خلفيات مهاجرة انطلقوا مع د. جمال ويقودون اليوم مشاريع ناجحة في ألمانيا:",
+    testi_verified: "دراسة حالة موثقة",
     testi_b1: "عائدات من 6 أرقام بعد 12 شهراً",
     testi_q1: "\"كنت أعتقد أن لكنتي تشكل عائقاً في السوق الألماني. علمني د. جمال أن قصتي وخلفيتي هما نقطة قوتي الكبرى. اليوم نخدم عملاء في كل أنحاء ألمانيا.\"",
     testi_r1: "تجارة إلكترونية وتوزيع",
+    testi_name_1: "طارق المنصوري",
+    testi_loc_1: "فرانكفورت",
     testi_b2: "بناء قاعدة عملاء B2B مؤسسية",
     testi_q2: "\"بفضل التدريب الفردي 1:1 والعمل الإعلامي مع د. جمال، بنيت علامة تجارية تفرض الثقة الفورية لدى كبرى الشركات والمؤسسات.\"",
     testi_r2: "استشارات ولغات",
+    testi_name_2: "أمينة بنعلي",
+    testi_loc_2: "دوسلدورف",
     testi_b3: "تطوير شركة حرفية معتمدة",
     testi_q3: "\"كان مبدأ باريتو نقطة التحول الفاصلة. حسّن د. جمال خطتي التسويقية وإدارة العمليات. واليوم لدي جدول أعمال ممتلئ بالطلبات ووجدت متسعاً لعائلتي.\"",
     testi_r3: "مايستر في التجهيزات التقنية للبناء",
+    testi_name_3: "كريم السيد",
+    testi_loc_3: "بريمن",
+    testi_read_case: "اطّلع على تفاصيل التجربة",
+
+    // 12. FAQ
     faq_tag: "وضوح وشفافية تامة",
     faq_title: "الأسئلة الشائعة",
+    faq_title_part1: "أهم الإجابات و",
+    faq_title_part2: "الأسئلة الشائعة",
     faq_desc: "كل ما تحتاج لمعرفته قبل جلستك الاستشارية المجانية الأولى:",
     faq_q1: "لمن يناسب هذا البرنامج التدريبي تحديداً؟",
-    faq_a1: "البرنامج مصمم خصيصاً لأصحاب الخلفيات المهاجرة في ألمانيا – سواء كنت موظفاً وترغب في تأسيس عملك الخاص بجانب وظيفتك، أو لديك فكرة مشروع وتبحث عن البداية الصحيحة، أو رائد أعمال قائم وتريد مضاعفة أرباحك وتوسيع شركتك.",
-    faq_q2: "هل يشترط أن أمتلك فكرة عمل جاهزة ومكتملة للبدء؟",
-    faq_a2: "لا، على الإطلاق! إذا كانت لديك مهارات، مواهب أو خبرات سابقة، نقوم معاً في الجلسة الاستشارية الأولى وورش العمل ببلورة عرض تجاري عالي الربحية ومطلوب بقوة في السوق الألماني.",
+    faq_a1: "للمهاجرات والمهاجرين في ألمانيا الراغبين في تأسيس عملهم الخاص أو جعل مشاريعهم الحالية أكثر وضوحاً وربحية – بغض النظر عن مستواهم اللغوي أو معرفتهم السابقة.",
+    faq_q2: "هل يشترط أن أمتلك فكرة عمل جاهزة للبدء؟",
+    faq_a2: "لا، على الإطلاق! العديد من المتدربين يكتشفون \"خبرتهم الدفينة\" معي خلال جلسات التدريب الأولى.",
     faq_q3: "بأي لغة تتم جلسات الاستشارة والتدريب؟",
-    faq_a3: "يتم التدريب حسب رغبتك باللغة <strong>الألمانية أو العربية</strong> (أو بالدمج بينهما). لا تقلق أبداً بشأن الأخطاء اللغوية – د. جمال مر بنفس التجربة ويعلمك أيضاً المصطلحات المهنية اللازمة للنجاح مع العملاء الألمان.",
+    faq_a3: "تتم باللغتين <strong>الألمانية أو العربية</strong> – بحسب ما هو أسهل وأنسب بالنسبة لك.",
     faq_q4: "متى يمكنني توقع ظهور أولى النتائج الملموسة؟",
-    faq_a4: "وفقاً لمبدأ 'التنفيذ بدل الانتظار'، نطلق حضورك الرقمي واستراتيجيتك التسويقية خلال الأسابيع الأولى. ومعظم المشاركين يوقعون عقودهم الأولى مع عملاء يدفعون خلال أول 30 إلى 60 يوماً.",
-    faq_q5: "كيف تجري الجلسة الاستشارية المجانية الأولى وما هي الخطوات التالية؟",
-    faq_a5: "بعد تقديم طلب الموعد، نتصل بك في التوقيت الذي تفضله. وخلال 30 دقيقة نناقش بسرية تامة أهدافك، التحديات التي تواجهك، ونحدد بصدق ما إذا كان التعاون بيننا مثمراً. وعند التوافق تحصل على خارطة طريقك المخصصة.",
-    final_kicker: "أماكن محدودة فقط متاحة للمرافقة الفردية 1:1",
+    faq_a4: "يعتمد ذلك على مدى التزامك. لا أعد بمعجزات بين عشية وضحاها – ولكن بالاستراتيجية الصحيحة والتنفيذ المستمر، فإن تحقيق نتائج ملموسة خلال بضعة أشهر أمر واقعي تماماً.",
+    faq_q5: "كيف تسير الأمور بعد تقديم طلب التسجيل؟",
+    faq_a5: "تتلقى في أقرب وقت موعداً لجلسة استشارية أولية مجانية، نناقش فيها وضعك الحالي وأهدافك المستقبلية.",
+    faq_support_badge: "✦ دعم واستفسارات مباشرة",
+    faq_support_title: "هل لا يزال لديك سؤال شخصي لم يُذكر هنا؟",
+    faq_support_desc: "ناقش تساؤلاتك وظروفك الخاصة مباشرة في جلسة استشارية أولية 1:1 بسرية تامة.",
+    faq_support_btn: "احجز جلستك الآن",
+
+    // 13. Abschluss-CTA
+    final_kicker: "هل أنت مستعد لخطوتك القادمة؟",
     final_title: 'هل أنت مستعد لتحويل قصتك وتجاربك إلى <span class="gold-gradient-text">نجاح حقيقي</span> في ألمانيا؟',
-    final_sub: "توقف عن الانتظار حتى يصبح كل شيء مثالياً. احجز جلستك الاستشارية الأولى غير الملزمة مع د. جمال بوعسيرية واكتشف كيف تؤسس وتطلق شركتك بثقة واستقرار.",
+    final_sub: "لا تحتاج إلى إتقان مثالي للألمانية. ولا تحتاج إلى شبكة علاقات تقدم لك كل شيء. تحتاج إلى خطوة أولى – وإلى شخص يرشدك كيف تسير الأمور حقاً.",
     final_btn_book: "احجز جلستك الاستشارية المجانية الآن",
     final_btn_ebook: "حمّل الكتاب الإرشادي المجاني",
+
+    // 14. Footer
     footer_quote: "«إذا قلت لنفسك مسبقاً: 'لن أستطيع'، فلن تنجح أبداً. لكن إذا سألت نفسك: 'كيف يمكنني أن أحقق ذلك؟' – فقد قطعت 80% من طريق النجاح. وما تبقى هو التنفيذ فقط.»",
     footer_quote_author: "— د. جمال بوعسيرية",
-    footer_brand_desc: "متخصصون في تأسيس الشركات، بناء العلامات التجارية وتعزيز الحضور الإعلامي لرواد الأعمال من أصول مهاجرة في ألمانيا.",
-    footer_contact_h: "تواصل مباشر",
+    footer_brand_desc: "تدريب ومرافقة فردية 1:1 للمهاجرات والمهاجرين في ألمانيا. يرافقك د. جمال بوعسيرية باللغتين الألمانية والعربية لتأسيس وإطلاق شركتك بنجاح.",
+    footer_contact_h: "بيانات التواصل",
     footer_nav_h: "تصفح الموقع",
+    footer_websites_h: "مواقعنا ومنصاتنا",
     footer_rights: "© 2026 د. جمال بوعسيرية · شركة أفريبا للخدمات الإعلامية. جميع الحقوق محفوظة.",
     footer_impressum: "البيانات القانونية",
     footer_datenschutz: "سياسة الخصوصية",
     mob_sticky_cta: "احجز جلستك المجانية",
+
     // Funnel & Lead Modal Keys (AR)
     funnel_step_1_of_4: "الخطوة 1 من 4",
     funnel_header_title: "جلسة استشارية أولية مجانية",
@@ -1406,7 +1615,7 @@ function initLanguageSwitcher() {
 
     try {
       localStorage.setItem('jb_coach_lang', lang);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   toggleButtons.forEach(btn => {
@@ -1423,5 +1632,6 @@ function initLanguageSwitcher() {
     if (savedLang && (savedLang === 'ar' || savedLang === 'de')) {
       setLanguage(savedLang);
     }
-  } catch (e) {}
+  } catch (e) { }
 }
+

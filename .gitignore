@@ -1,0 +1,18 @@
+# Development scripts & files
+server.js
+fix_quotes.py
+scratch/
+scratch_*.js
+
+# Raw assets & documentation
+images/
+Webseite Text Deutsch.pdf
+logo 1.png
+
+# Build & Archives
+dist/
+*.zip
+
+# OS files
+.DS_Store
+Thumbs.db
