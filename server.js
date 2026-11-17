@@ -2,7 +2,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 3000;
+const DEFAULT_PORT = 3000;
+const FALLBACK_PORT = 3001;
 const MIME_TYPES = {
   '.html': 'text/html; charset=UTF-8',
   '.css': 'text/css; charset=UTF-8',
@@ -64,6 +65,19 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running at http://localhost:${PORT}/`);
+function startServer(port) {
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`Server running at http://localhost:${port}/`);
+  });
+}
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`Port ${DEFAULT_PORT} is in use, falling back to ${FALLBACK_PORT}...`);
+    startServer(FALLBACK_PORT);
+  } else {
+    console.error('Server error:', err);
+  }
 });
+
+startServer(DEFAULT_PORT);
