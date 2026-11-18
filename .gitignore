@@ -5,7 +5,7 @@ scratch/
 scratch_*.js
 
 # Raw assets & documentation
-images/
+/images/
 Webseite Text Deutsch.pdf
 logo 1.png
 

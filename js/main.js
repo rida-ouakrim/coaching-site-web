@@ -724,6 +724,8 @@ function initScrollPerformanceManager() {
   const header = document.querySelector('.header-nav');
   const bar = document.getElementById('scrollProgressBar');
   const backToTopBtn = document.getElementById('backToTopBtn');
+  const mobileStickyBar = document.querySelector('.mobile-sticky-bar');
+  const siteFooter = document.querySelector('.site-footer');
 
   let ticking = false;
   let cachedDocHeight = 0;
@@ -759,6 +761,16 @@ function initScrollPerformanceManager() {
         backToTopBtn.classList.add('visible');
       } else {
         backToTopBtn.classList.remove('visible');
+      }
+    }
+
+    // 4. Mobile Sticky Conversion Bar: smoothly slide away when footer/legal is in view
+    if (mobileStickyBar && siteFooter) {
+      const footerRect = siteFooter.getBoundingClientRect();
+      if (footerRect.top < window.innerHeight - 60) {
+        mobileStickyBar.classList.add('footer-in-view');
+      } else {
+        mobileStickyBar.classList.remove('footer-in-view');
       }
     }
 
@@ -870,7 +882,7 @@ const I18N = {
     problem_res_cta: "Unverbindliches Erstgespräch buchen",
     problem_perspective: "DIE PERSPEKTIVE",
 
-    // 3. Vorstellung: Wer ist Jamal Bouassiria (PDF Abschnitt 3)
+    // 3. Vorstellung: Wer ist Dr. Jamal Bouassiria (PDF Abschnitt 3)
     about_portrait_role: "Gründer, Publizist & Mentor",
     about_badge_exp: "Promotion Universität Bremen",
     about_tag: "Vorstellung",
@@ -1110,7 +1122,7 @@ const I18N = {
 
     // 14. Footer (PDF Abschnitt 14)
     footer_quote: "„Wenn du schon sagst: 'Ich schaffe das nicht', dann wirst du es nicht schaffen. Aber wenn du dich fragst: 'Wie kann ich es doch schaffen?' – dann hast du schon 80 % geschafft. Den Rest musst du nur noch tun.“",
-    footer_quote_author: "— Jamal Bouassiria",
+    footer_quote_author: "— Dr. Jamal Bouassiria",
     footer_brand_desc: "1:1 Business Coaching und Mentoring für Migrantinnen und Migranten in Deutschland. Dr. Jamal Bouassiria begleitet dich auf Deutsch und Arabisch zum erfolgreichen Unternehmen.",
     footer_contact_h: "Kontakt",
     footer_nav_h: "Navigation",
@@ -1237,7 +1249,7 @@ const I18N = {
     problem_res_cta: "احجز جلستك الاستشارية غير الملزمة",
     problem_perspective: "المنظور والحل",
 
-    // 3. Vorstellung: Wer ist Jamal Bouassiria
+    // 3. Vorstellung: Wer ist Dr. Jamal Bouassiria
     about_portrait_role: "مؤسس، كاتب ومستشار أعمال",
     about_badge_exp: "دكتوراه من جامعة بريمن",
     about_tag: "التعريف بالمرشد",
